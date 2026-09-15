@@ -6,6 +6,14 @@ Ubuntu 가상 디스플레이 · VNC 설정 매뉴얼
 
 Ubuntu 22.04를 기본으로, 모니터가 있으면 주 화면을 공유하고 없으면 가상 화면으로 같은 데스크톱을 유지하기 위한 매뉴얼입니다. Ubuntu 24.04의 적용 및 검증 절차도 포함합니다.
 
+## 설정 후 사용 방법
+
+1. VNC 뷰어를 엽니다.
+2. 대상 PC의 주소와 VNC 포트를 입력합니다.
+3. VNC 비밀번호를 입력하고 화면을 사용합니다.
+
+**기본 방식은 현재 PC와 같은 VNC 직접 접속입니다.** SSH 터널 실행이나 VPN 로그인은 필요하지 않습니다. 설치자는 외부 주소·포트 전달·방화벽을 한 번 구성하고, 사용자는 매번 뷰어로 바로 접속합니다.
+
 ## 읽는 순서
 
 | 문서 | 용도 |
@@ -17,6 +25,7 @@ Ubuntu 22.04를 기본으로, 모니터가 있으면 주 화면을 공유하고 
 | [reference/current-pc](reference/current-pc) | 현재 설정 파일 6개의 참고 복사본 |
 | [reference/source-manifest.json](reference/source-manifest.json) | 원본 경로와 SHA-256 지문 |
 | [VALIDATION.md](VALIDATION.md) | 문서 검증 결과 |
+| [OPTIONAL-REMOTE-ACCESS.md](OPTIONAL-REMOTE-ACCESS.md) | 사용자가 연결 방식 변경을 선택한 경우에만 보는 SSH·VPN 부록 |
 
 ## Codex에게 맡기기
 
