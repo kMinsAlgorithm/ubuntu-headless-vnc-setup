@@ -1,0 +1,36 @@
+{
+  "captured_date": "2026-09-15",
+  "description": "Read-only copies of six current-PC configuration files. No passwords or authentication keys included.",
+  "files": [
+    {
+      "source_path": "/etc/X11/xorg.conf.d/20-nvidia-virtual-monitor.conf",
+      "bundle_path": "reference/current-pc/20-nvidia-virtual-monitor.conf",
+      "sha256": "e8ab19f54bf564df857598fe926b1827e4ea7d55655422a0ceacc5440f1bfd24"
+    },
+    {
+      "source_path": "/etc/gdm3/custom.conf",
+      "bundle_path": "reference/current-pc/gdm3-custom.conf",
+      "sha256": "7d868039759d796bde4089321e4a30b12de4a49bc527dbf54bf49374a6572d53"
+    },
+    {
+      "source_path": "/etc/systemd/system/x11vnc-physical.service",
+      "bundle_path": "reference/current-pc/x11vnc-physical.service",
+      "sha256": "79f35a165b3eec9b5b22593e1b4df84a57f6d77940f3d0063e81137f8509c0b8"
+    },
+    {
+      "source_path": "/usr/local/sbin/x11vnc-physical.sh",
+      "bundle_path": "reference/current-pc/x11vnc-physical.sh",
+      "sha256": "1de248dbf8048a5ea562439e34f3719bc709a26366b44446aacb236ebf7e1d67"
+    },
+    {
+      "source_path": "/home/kmg/.config/systemd/user/adaptive-display-mode.service",
+      "bundle_path": "reference/current-pc/adaptive-display-mode.service",
+      "sha256": "e2fab9cea0584c79e73b313f297d30822108e0dc91088021ec9e2680155efd98"
+    },
+    {
+      "source_path": "/home/kmg/bin/adaptive-display-mode.sh",
+      "bundle_path": "reference/current-pc/adaptive-display-mode.sh",
+      "sha256": "90729b317e05e2a4430df8559ecfbe17d91f73af245b6d343e34bc6010f625fa"
+    }
+  ]
+}

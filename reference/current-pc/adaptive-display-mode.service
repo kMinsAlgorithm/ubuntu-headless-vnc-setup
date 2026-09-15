@@ -1,0 +1,17 @@
+[Unit]
+Description=Adaptive display mode for physical VNC
+After=graphical-session.target
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
+Environment=ADAPTIVE_OUTPUT=HDMI-0
+Environment=ADAPTIVE_FALLBACK_MODE=1920x1080
+Environment=ADAPTIVE_FALLBACK_RATE=59.96
+ExecStart=/home/kmg/bin/adaptive-display-mode.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

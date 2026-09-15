@@ -1,0 +1,24 @@
+# Local archives, backups, and logs
+*.zip
+*.log
+backup*/
+headless-vnc-setup/
+
+# Credentials and machine-specific authentication files
+.env
+.env.*
+!.env.example
+.vnc/
+.ssh/
+.Xauthority
+physical-passwd
+passwd
+tailscaled.state
+*.pem
+*.key
+*.p12
+
+# Editor and Python artifacts
+.DS_Store
+__pycache__/
+*.pyc
