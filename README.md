@@ -22,6 +22,10 @@ Ubuntu 22.04를 기본으로, 모니터가 있으면 주 화면을 공유하고 
 - Codex 자동 작업 지침: [AGENTS.md](AGENTS.md), [CODEX-RUNBOOK.md](CODEX-RUNBOOK.md)
 - 수동 선택기 사용 중에는 자동 감지 서비스를 disabled/inactive로 둡니다. 아래 상세 매뉴얼의 자동 모니터 전환 경로와 구분합니다.
 
+## VNC 한/영 전환과 직접 키보드 사용
+
+[키보드 모드 매뉴얼](KEYBOARD-MODE.md)에 Caps Lock→한/영 전환, 기존 설정 복구, Mac/iPad 입력 언어와 조합 문제 점검 절차를 정리했습니다. 바탕화면 ‘VNC 키보드 모드’에서 켜고 끕니다.
+
 ## 읽는 순서
 
 | 문서 | 용도 |

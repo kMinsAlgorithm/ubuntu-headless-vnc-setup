@@ -84,7 +84,7 @@
   "files": [
     {
       "bundle_path": "resolution-switcher/resolution_switcher.py",
-      "sha256": "d91ba2e5b49a54b7f89193ec083417ad39e46ffe632744df807236b7c781cdbc"
+      "sha256": "3e85f82a78b1e0128de2487b21a932659a8f26fd912201f8945d95ebb99ce640"
     },
     {
       "bundle_path": "resolution-switcher/display.svg",
@@ -98,5 +98,6 @@
       "bundle_path": "scripts/install-resolution-switcher.py",
       "sha256": "05e88a4ecbf8cfa68bd22c6dfd4e29d2556c3ffa4a7a70d9ad9e326304f906ba"
     }
-  ]
+  ],
+  "keyboard_tool_integration": "Shared x11vnc control lock added 2026-09-18; screen profile values unchanged."
 }

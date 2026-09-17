@@ -13,3 +13,11 @@
 - 암호 파일, Xauthority 내용, 개인키, 접속 IP가 들어간 로그, 사용자 스크린샷은 커밋하지 않는다. 설치 영수증·실행 로그는 사용자의 `.local/state/vnc-resolution-switcher`에 둔다.
 - 변경 검증: `/usr/bin/python3 -m unittest discover -s tests -v`, `/usr/bin/python3 scripts/install-resolution-switcher.py --check`, `git diff --check`. 문서의 명령은 먼저 구문만 확인한다. 활성 화면 변경 시험은 필요할 때만 수행하고 실제 결과와 미실시를 구분한다.
 - 코드·문서·실제 설치본의 차이, 백업 경로, 현재 해상도/scale/서비스 상태를 인계한다. 재부팅 후 마지막 선택 복원을 구현한 것으로 보고하지 않는다. 현재 선택은 X 세션 범위다.
+
+## 키보드 모드 작업
+
+- KEYBOARD-MODE.md를 읽고 현재 입력기·클라이언트 입력 언어를 확인한다. Mac 한글 모드에서 낱자를 전송하는 문제를 서버 Caps Lock 재매핑만으로 해결 완료라고 하지 않는다.
+- Codex CLI는 `keyboard_mode.py status/on/off`다. 개인 원본 설정은 `.local/state/vnc-keyboard-mode`에 저장하며 커밋하지 않는다.
+- 키보드 모드의 사용자 서비스와 기존 자동 해상도 서비스는 별개다. 키보드 모드를 켜면서 adaptive-display-mode.service를 켜지 않는다.
+- x11vnc 제어 요청은 두 도구가 공유하는 vnc-control.lock을 사용한다. 사용자 키 입력 전체를 기록하지 않는다.
+- 실제 Mac/iPad 조합과 Caps Lock 전환은 사용자 확인이 필요하다. 격리된 VNC/IBus 검사 결과와 구분한다.

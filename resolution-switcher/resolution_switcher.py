@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Small X11 resolution chooser with an independent rollback process."""
 import json
+import fcntl
+from contextlib import contextmanager, nullcontext
 import os
 from pathlib import Path
 import re
@@ -117,9 +119,29 @@ def apply_mode(output, mode, rate):
 
 
 
+
+@contextmanager
+def vnc_control_lock():
+    """x11vnc uses one X property for all requests; serialize our tools."""
+    path = Path.home() / '.local/state/vnc-control.lock'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('a') as stream:
+        deadline = time.monotonic() + 12
+        while True:
+            try:
+                fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('VNC 설정 조회가 진행 중입니다. 잠시 뒤 다시 시도하세요.')
+                time.sleep(0.02)
+        yield
+
+
 def x_tool(*args):
-    result = subprocess.run(args, text=True, capture_output=True, timeout=3,
-                            env={**os.environ, "LC_ALL": "C"})
+    with vnc_control_lock() if Path(args[0]).name == "x11vnc" else nullcontext():
+        result = subprocess.run(args, text=True, capture_output=True, timeout=3,
+                                env={**os.environ, "LC_ALL": "C"})
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "창 정보를 확인하지 못했습니다.")
     return result.stdout

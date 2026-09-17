@@ -1,5 +1,18 @@
 # 검증 결과
 
+## 2026-09-18 VNC 키보드 모드 — 클라이언트 확인 진행 중
+
+- 기존 18개 + 키보드 설정/복구 10개 = 28개 오프라인 검사 통과.
+- 별도 Xvfb/127.0.0.1 전용 x11vnc에 실제 RFB 키를 보내 Caps Lock→Hangul 5회, Caps 잠금 방지, 소문자·Shift 대문자·Super 보존, 원래 Caps Lock 기능 복구 확인.
+- 별도 Xvfb/DBus/IBus/GTK 세션에서 영문 키→‘가나다’ 조합 확인. 실제 사용자 세션의 입력기 재시작 없음.
+- 기준 PC에서 바탕화면 아이콘·CLI 설치, Caps 잠금 해제, `Caps_Lock-Hangul` 매핑 적용, `Hangul,Shift+space,Control+space` 전환키 확인.
+- 기존 `Control+space,Hangul,Super_R,Alt_L` 값과 VNC 매핑은 로컬 개인 백업에 보존. 실제 직접 연결 키보드 시험은 미실시.
+- 키보드 감시기와 해상도 도구의 x11vnc 제어 요청 충돌 발견·수정. 두 도구의 동시 상태 조회 8회 통과. 감시기는 동일 VNC 프로세스에서 주기적으로 제어 속성을 조회하지 않도록 변경.
+- 해상도1600×1050·scale=1, 기존 VNC 프로세스·직접 접속 유지. 해상도 선택기의 변경은 제어 통신 잠금 추가이며 프로필 값은 유지.
+- 실제 Mac의 입력 언어가 한글인 상태에서 자음·모음 분리가 보고됨. Mac ABC + Shift+Space 결과, VNC 앱별 Caps 전달, iPad, 새 재부팅은 확인 대기/미실시. 서버 시험을 사용자 최종 수용으로 보고하지 않음.
+
+[키보드 사용·복구 절차](KEYBOARD-MODE.md)를 따른다. 아래 기록은 먼저 완료된 해상도 작업 당시의 검사 결과다.
+
 ## 2026-09-17 해상도 선택기와 Codex 도구
 
 기준 PC의 실제 iPad 설정을 레포에 추가하고 설치기를 통해 현재 사용자에게 배포했습니다. 설정값·서비스 상태·배포 파일 지문은 [display-profile-state.json](reference/display-profile-state.json)에 기록했습니다.
