@@ -172,3 +172,11 @@ Mac 기본 ‘화면 공유’에서 단일 두벌식 낱자가 전달되면 최
 실제 iPad RVNC가 Caps 상태를 down/up으로 번갈아 보내는 경우 선택형 Caps 보정 모듈을 KEYBOARD-MODE.md에 따라 빌드·격리 검증한다. 최신 사용자 프로그램이 먼저 설치돼 있어야 한다. 최초 시스템 연결만 관리자 인증과 VNC 재접속이 필요하며, GDM/Xorg/IBus는 재시작하지 않는다. 기존 직접 접속 옵션·인증 경로·실행기 백업을 보존한다. sudo 권한이 없으면 사용자에게 준비된 설치 명령의 인증을 요청하되 비밀번호를 채팅으로 받지 않는다. GUI 상태가 not-installed인 채로 iPad 문제가 해결됐다고 보고하지 않는다.
 
 Mac 기본 화면 공유의 양쪽 Cmd가 Alt_L로 전달되는 것을 실제 확인했다. VNC 모드에서는 Alt_L→Control_L로 연결하며 기존 Ctrl 키는 유지한다. 다른 뷰어의 Cmd/Option은 같다고 추정하지 않는다. 일반 앱 Cmd+C/V와 Ubuntu 터미널 Cmd+Shift+C/V를 구분하고, Cmd 추가를 위해 Caps 모듈 재빌드나 VNC 재시작을 하지 않는다.
+
+### iPad 복사 보호
+
+iPad RVNC의 Cmd+C/V가 Control+c/v로 정상 도착해도 클립보드 왕복 과정에서 내용이 달라질 수 있다. 먼저 지정한 시험 문장으로 키 동작과 클립보드 결과를 구분한다. 원문 복사가 `nosetclipboard`/`nosetprimary`에서 정상화되면 바탕화면 체크 항목 또는 `keyboard_mode.py clipboard-on`을 사용한다. 이 선택은 모든 VNC 접속의 기기 → Ubuntu 클립보드 수신을 제한하므로 사용자의 기기 간 복사 필요를 확인한다. 기준 PC 사용자는 Ubuntu 내부 복사만으로 충분하다고 선택했다.
+
+`clipboard-off`는 원래 수신 설정, `off`는 키보드와 수신 설정을 함께 복구한다. `status`의 `clipboard_protection`, `clipboard_receive`를 확인한다. 기존 활성 프로필 업그레이드는 새 수신 필드만 현재 값으로 추가하고 원래 키 매핑 백업을 보존한다. 보호만 전환하면서 Caps 보정 세대나 정상 키 매핑을 초기화하지 않는다. 원문 자체를 클립보드에서 읽거나 세션 전체를 기록하지 않는다.
+
+검사: `/usr/bin/python3 -m unittest discover -s tests -v`, `/usr/bin/python3 tests/probe_vnc_clipboard.py`. 후자는 별도 Xvfb/loopback VNC만 사용하고, 창 관리자가 없는 환경의 x11vnc 초기 대기 때문에 약 50초가 걸린다. 실제 VNC는 재시작하지 않는다.

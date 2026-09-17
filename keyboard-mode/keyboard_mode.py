@@ -18,6 +18,7 @@ STATE_DIR = Path.home() / '.local/state/vnc-keyboard-mode'
 STATE_FILE = STATE_DIR / 'state.json'
 UNIT = 'vnc-keyboard-mode.service'
 SWITCH_KEYS = 'Hangul,Shift+space,Control+space'
+CLIPBOARD_KEYS = ('setclipboard', 'setprimary')
 # Single keystrokes on a Korean two-beolsik keyboard. Do not map compound
 # jamo or committed syllables: those cannot be represented by one key event.
 JAMO_KEYS = {
@@ -189,10 +190,14 @@ def x_cardinal(name, value=None):
         lib.XCloseDisplay(display)
 
 
-def target_server(original):
+def target_server(original, protect_clipboard=False):
     target = {**original, 'remap': remap_for_vnc(original['remap']), 'skip_lockkeys': '0'}
     if 'caps_bridge' in original:
         target['caps_bridge'] = '1'
+    if protect_clipboard:
+        if not all(key in original for key in CLIPBOARD_KEYS):
+            raise RuntimeError('클립보드 수신 설정을 확인하지 못했습니다.')
+        target.update({key: '0' for key in CLIPBOARD_KEYS})
     return target
 
 
@@ -236,29 +241,38 @@ class Backend:
             raise RuntimeError('입력기 설정 확인에 실패했습니다.')
 
     def vnc(self):
-        raw = run('/usr/bin/x11vnc', '-Q', 'pid,remap,skip_lockkeys')
+        raw = run('/usr/bin/x11vnc', '-Q', 'pid,remap,skip_lockkeys,setclipboard,setprimary')
         values = dict(re.findall(r'(?:ans|aro)=([a-z_]+):(.*?)(?=,(?:ans|aro)=|$)', raw))
-        if not {'pid', 'remap', 'skip_lockkeys'} <= values.keys():
+        if not {'pid', 'remap', 'skip_lockkeys', *CLIPBOARD_KEYS} <= values.keys():
             raise RuntimeError('x11vnc 원격 제어 상태를 읽지 못했습니다.')
-        if values['skip_lockkeys'] not in ('0', '1'):
-            raise RuntimeError('x11vnc 잠금 키 처리 값을 확인하지 못했습니다.')
+        if any(values[key] not in ('0', '1') for key in ('skip_lockkeys', *CLIPBOARD_KEYS)):
+            raise RuntimeError('x11vnc 키·클립보드 설정 값을 확인하지 못했습니다.')
         result = {'identity': server_identity(values['pid']), 'remap': values['remap'],
-                  'skip_lockkeys': values['skip_lockkeys']}
+                  'skip_lockkeys': values['skip_lockkeys'],
+                  **{key: values[key] for key in CLIPBOARD_KEYS}}
         if x_cardinal('_VNC_KEYBOARD_CAPS_BRIDGE') == [int(values['pid']), 1]:
             result['caps_bridge'] = '1' if any(x_cardinal('_VNC_KEYBOARD_CAPS_MODE')) else '0'
         return result
 
     def set_vnc(self, target):
+        current = self.vnc()
+        if current['identity'] != target['identity']:
+            raise RuntimeError('VNC 서버가 변경되었습니다. 다시 상태를 확인하세요.')
         if 'caps_bridge' in target:
             pid = int(target['identity'].split(':')[1])
             if x_cardinal('_VNC_KEYBOARD_CAPS_BRIDGE') != [pid, 1]:
                 raise RuntimeError('iPad 보정 모듈의 서버가 변경되었습니다. 다시 상태를 확인하세요.')
-            if target['caps_bridge'] == '0':
+            if target['caps_bridge'] == '0' and current.get('caps_bridge') != '0':
                 x_cardinal('_VNC_KEYBOARD_CAPS_MODE', [0])
         # skip_lockkeys is evaluated before remap in x11vnc, so it must be off.
-        run('/usr/bin/x11vnc', '-sync', '-R', 'remap:' + target['remap'])
-        run('/usr/bin/x11vnc', '-sync', '-R', 'skip_lockkeys' if target['skip_lockkeys'] == '1' else 'noskip_lockkeys')
-        if target.get('caps_bridge') == '1':
+        if current['remap'] != target['remap']:
+            run('/usr/bin/x11vnc', '-sync', '-R', 'remap:' + target['remap'])
+        if current['skip_lockkeys'] != target['skip_lockkeys']:
+            run('/usr/bin/x11vnc', '-sync', '-R', 'skip_lockkeys' if target['skip_lockkeys'] == '1' else 'noskip_lockkeys')
+        for key in CLIPBOARD_KEYS:
+            if key in target and current.get(key) != target[key]:
+                run('/usr/bin/x11vnc', '-sync', '-R', key if target[key] == '1' else 'no' + key)
+        if target.get('caps_bridge') == '1' and current.get('caps_bridge') != '1':
             x_cardinal('_VNC_KEYBOARD_CAPS_MODE', [(time.monotonic_ns() & 0x7fffffff) | 1])
         if self.vnc() != target:
             raise RuntimeError('VNC 키 매핑 확인에 실패했습니다.')
@@ -276,8 +290,10 @@ def assert_compatible(actual, original, target, label):
         raise RuntimeError(label + ' 설정이 외부에서 변경되었습니다. 다른 설정을 덮어쓰지 않고 중단했습니다.')
 
 
-def enable_mode(backend):
+def enable_mode(backend, protect_clipboard=None):
     previous = load_state()
+    if protect_clipboard is None:
+        protect_clipboard = bool(previous and previous.get('protect_clipboard'))
     ime, server = backend.ime(), backend.vnc()
     if not previous or not previous.get('enabled'):
         # Save the complete owned settings before the first mutation.
@@ -286,14 +302,19 @@ def enable_mode(backend):
         atomic_json(STATE_DIR / ('backup-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '.json'), state)
     else:
         state = dict(previous)
+        state['original_vnc'] = dict(previous['original_vnc'])
         assert_compatible(ime, state['original_ime'], TARGET_IME, '입력기')
         if server['identity'] != state['original_vnc']['identity']:
             # A new server has its own baseline; do not restore another process's options.
             state['original_vnc'] = server
         else:
-            target = target_server(state['original_vnc'])
+            # Capture newly owned fields without replacing the key backup.
+            for key in CLIPBOARD_KEYS:
+                if key in server and key not in state['original_vnc']:
+                    state['original_vnc'][key] = server[key]
+            target = target_server(state['original_vnc'], protect_clipboard)
             # A process can be interrupted between the two remote commands.
-            for key in ('remap', 'skip_lockkeys', *(('caps_bridge',) if 'caps_bridge' in state['original_vnc'] else ())):
+            for key in state['original_vnc'].keys() - {'identity'}:
                 # Accept the last target we actually saved when upgrading an
                 # enabled older profile, but never arbitrary external edits.
                 saved_target = state.get('target_vnc', {})
@@ -301,8 +322,8 @@ def enable_mode(backend):
                         and server[key] == saved_target.get(key)):
                     continue
                 assert_compatible(server[key], state['original_vnc'][key], target[key], 'VNC ' + key)
-    target = target_server(state['original_vnc'])
-    state.update(phase='applying', target_vnc=target)
+    target = target_server(state['original_vnc'], protect_clipboard)
+    state.update(phase='applying', target_vnc=target, protect_clipboard=protect_clipboard)
     atomic_json(STATE_FILE, state)
     try:
         backend.set_vnc(target)
@@ -323,7 +344,8 @@ def enable_mode(backend):
         raise RuntimeError(str(exc) + (' · 복구 확인 필요: ' + ' / '.join(errors) if errors else ' · 적용 전 설정으로 복구했습니다.'))
     state.update(phase='on', error=None)
     atomic_json(STATE_FILE, state)
-    return {'mode': 'vnc', 'caps_lock': False, 'switch_keys': SWITCH_KEYS}
+    return {'mode': 'vnc', 'caps_lock': False, 'switch_keys': SWITCH_KEYS,
+            'clipboard_protection': protect_clipboard}
 
 
 def disable_mode(backend):
@@ -346,10 +368,13 @@ def disable_mode(backend):
         server = None
     same_server = server and server['identity'] == state['original_vnc']['identity']
     if same_server:
-        for key in ('remap', 'skip_lockkeys', *(('caps_bridge',) if 'caps_bridge' in state['original_vnc'] else ())):
+        for key in state['original_vnc'].keys() - {'identity'}:
             assert_compatible(server[key], state['original_vnc'][key], state['target_vnc'][key], 'VNC ' + key)
     if same_server:
-        backend.set_vnc(state['original_vnc'])
+        # Older profiles do not own the new clipboard fields until upgraded.
+        restore = {**{key: server[key] for key in CLIPBOARD_KEYS if key in server},
+                   **state['original_vnc']}
+        backend.set_vnc(restore)
     backend.set_ime(state['original_ime'])
     backend.clear_caps()
     state.update(enabled=False, phase='off', error=None)
@@ -362,11 +387,17 @@ def status(backend):
     server = backend.vnc()
     ime = backend.ime()
     requested = bool(state and state.get('enabled'))
-    effective = requested and server == state.get('target_vnc') and ime == TARGET_IME
+    saved_target = (state or {}).get('target_vnc', {})
+    comparison = {**{key: server[key] for key in CLIPBOARD_KEYS if key in server}, **saved_target}
+    effective = requested and server == comparison and ime == TARGET_IME
     return {'mode': 'vnc' if effective else ('needs-apply' if requested else 'local'),
             'enabled': requested, 'caps_lock': caps_lock(), 'switch_keys': ime['value'],
             'vnc_remap': server['remap'], 'skip_lockkeys': server['skip_lockkeys'],
             'caps_bridge': server.get('caps_bridge', 'not-installed'),
+            'clipboard_protection_requested': bool(state and state.get('protect_clipboard')),
+            'clipboard_protection': bool(effective and state.get('protect_clipboard')
+                                         and all(server.get(key) == '0' for key in CLIPBOARD_KEYS)),
+            'clipboard_receive': {key: server.get(key) for key in CLIPBOARD_KEYS},
             'backup_directory': str(STATE_DIR)}
 
 
@@ -447,6 +478,11 @@ def gui():
                 button.connect('clicked', self.change, command)
                 actions.pack_start(button, True, True, 0)
             box.pack_start(actions, False, False, 0)
+            self.protection = Gtk.CheckButton(label='iPad 복사 보호')
+            self.protection.connect('toggled', self.change_clipboard)
+            box.pack_start(self.protection, False, False, 0)
+            clipboard_note = Gtk.Label(label='Ubuntu 안에서 복사한 원문을 보호합니다.\n켜져 있는 동안 기기 → Ubuntu 붙여넣기는 제한됩니다.\n같은 화면에 연결한 Mac과 iPad 모두에 적용됩니다.', xalign=0)
+            box.pack_start(clipboard_note, False, False, 0)
             entry = Gtk.Entry()
             entry.set_placeholder_text('여기서 Caps Lock → abc / 가나다 전환 확인')
             entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
@@ -460,12 +496,27 @@ def gui():
             self.refresh()
             self.window.show_all()
 
+        def change_clipboard(self, button):
+            if getattr(self, 'refreshing', False):
+                return
+            try:
+                with operation_lock():
+                    enable_mode(Backend(), protect_clipboard=button.get_active())
+                self.refresh()
+            except Exception as exc:
+                self.refresh()
+                self.label.set_text(str(exc))
+
         def refresh(self):
             try:
                 info = status(Backend())
                 name = {'vnc': 'VNC 모드 켜짐', 'local': '직접 사용 · 기존 설정', 'needs-apply': 'VNC 모드 재적용 필요'}[info['mode']]
                 self.label.set_text(name + '  /  Caps Lock 잠금: ' + ('켜짐' if info['caps_lock'] else '꺼짐')
                     + '\niPad 보정: ' + {'1': '켜짐', '0': '꺼짐', 'not-installed': '추가 설치 필요'}[info['caps_bridge']])
+                self.refreshing = True
+                self.protection.set_active(info['clipboard_protection_requested'])
+                self.protection.set_sensitive(info['enabled'])
+                self.refreshing = False
             except Exception as exc:
                 self.label.set_text(str(exc))
 
@@ -483,7 +534,7 @@ def gui():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('gui', 'status', 'on', 'off', 'watch'), nargs='?', default='gui')
+    parser.add_argument('command', choices=('gui', 'status', 'on', 'off', 'watch', 'clipboard-on', 'clipboard-off'), nargs='?', default='gui')
     args = parser.parse_args()
     try:
         if args.command == 'gui':
@@ -495,8 +546,13 @@ def main():
             result = status(Backend())
         else:
             with operation_lock():
-                result = (enable_mode if args.command == 'on' else disable_mode)(Backend())
-            manage_service(args.command == 'on')
+                if args.command.startswith('clipboard-'):
+                    if not (load_state() or {}).get('enabled'):
+                        raise RuntimeError('먼저 VNC 모드를 켜 주세요.')
+                    result = enable_mode(Backend(), protect_clipboard=args.command == 'clipboard-on')
+                else:
+                    result = (enable_mode if args.command == 'on' else disable_mode)(Backend())
+            manage_service(args.command != 'off')
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except Exception as exc:

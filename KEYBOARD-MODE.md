@@ -21,7 +21,21 @@ Mac 기본 ‘화면 공유’의 실제 확인에서 **양쪽 Cmd 모두 `Alt_L
 
 Ubuntu 터미널은 원래 복사·붙여넣기에 **Ctrl+Shift+C/V**를 사용하므로 이 모드에서는 **Cmd+Shift+C/V**를 사용합니다. Cmd+C는 Ctrl+C와 같은 터미널 인터럽트입니다.
 
-‘직접 사용’을 누르면 추가 Cmd 매핑도 원래 값으로 복구합니다. 이 추가 설정에는 관리자 인증이나 VNC 재시작이 필요 없습니다. Option과 Super 키를 일괄 변환하지 않습니다. 다른 VNC 앱/클라이언트가 Cmd를 다른 키로 보내면 그 클라이언트의 전달 키를 먼저 확인합니다. Mac 기본 화면 공유에서 사용자가 Cmd+A/C/V 복사·붙여넣기 정상 동작을 확인했습니다. iPad의 Cmd 전달 키와 단축키는 별도 실기 확인 대상입니다.
+‘직접 사용’을 누르면 추가 Cmd 매핑도 원래 값으로 복구합니다. 이 추가 설정에는 관리자 인증이나 VNC 재시작이 필요 없습니다. Option과 Super 키를 일괄 변환하지 않습니다. 다른 VNC 앱/클라이언트가 Cmd를 다른 키로 보내면 그 클라이언트의 전달 키를 먼저 확인합니다. Mac 기본 화면 공유에서 사용자가 Cmd+A/C/V 복사·붙여넣기 정상 동작을 확인했습니다. iPad RVNC에서도 Cmd+C/V가 Ctrl+C/V로 도착하는 것을 확인했습니다. 아래 클립보드 보호 시험에서 사용자가 한글 원문 복사·붙여넣기 정상 동작을 확인했습니다.
+
+## iPad RVNC에서 복사한 한글이 깨질 때
+
+**VNC 키보드 모드 → iPad 복사 보호**를 켭니다. Ubuntu 앱 안에서 복사한 원문을 VNC 클라이언트가 보낸 클립보드로 덮어쓰지 않게 합니다. Cmd+C/V 매핑과 Caps Lock 보정은 그대로 사용합니다.
+
+실제 iPad에서 고정 문장 `가나다 abc123`의 Cmd+C/V 동작은 정상 인식됐지만 붙여넣은 내용이 달라졌습니다. 클립보드 수신을 제한한 비교 시험에서는 사용자가 **원문 그대로 붙여넣어짐**을 확인했습니다. 이는 키 전달과 클립보드 동기화를 구분한 결과이며, RVNC 내부의 정확한 문자 변환 알고리즘까지 확인한 것은 아닙니다.
+
+- 보호를 켜면 **iPad/Mac에서 복사한 내용을 Ubuntu로 가져오는 기능이 제한**됩니다. 같은 서버에 연결한 모든 VNC 클라이언트에 적용됩니다. Ubuntu 앱끼리의 복사·붙여넣기는 가능합니다.
+- 기기 간 붙여넣기가 필요하면 체크를 끕니다. 수신 설정은 보호 기능을 처음 적용하기 전의 값으로 돌아갑니다. 보호를 끈 상태에서 iPad 한글 깨짐이 다시 발생할 수 있습니다.
+- **직접 사용 · 원래 설정**은 키 설정과 클립보드 수신을 함께 복구합니다. 다음에 VNC 모드를 켜면 마지막 보호 선택을 다시 사용합니다.
+- 기본 신규 설치는 보호를 자동으로 켜지 않습니다. 이 기준 PC는 사용자가 Ubuntu 내부 복사만으로 충분하다고 선택했으므로 보호를 켜는 경로를 사용합니다.
+- VNC/GDM/IBus 재시작이나 관리자 인증은 필요 없습니다. 클립보드의 실제 내용은 도구가 읽거나 저장하지 않습니다.
+
+구현은 x11vnc의 `setclipboard`, `setprimary` 원래 값을 백업하고 보호 중에만 둘 다 `0`으로 설정합니다. 전송 방향 설정이나 클립보드 내용을 변환하지 않습니다. 기기 간 한글 클립보드 전체 호환성을 구현한 기능은 아닙니다. [별도 RFB 검사](tests/probe_vnc_clipboard.py)는 고정 문자열로 덮어쓰기 재현·보호·수신 복구를 검사합니다.
 
 ## Mac 기본 ‘화면 공유’ 앱
 
@@ -101,6 +115,9 @@ sudo /usr/bin/python3 scripts/install-caps-bridge.py --restore
 /usr/bin/python3 "$HOME/.local/share/vnc-keyboard-mode/keyboard_mode.py" on
 /usr/bin/python3 "$HOME/.local/share/vnc-keyboard-mode/keyboard_mode.py" off
 /usr/bin/python3 "$HOME/.local/share/vnc-keyboard-mode/keyboard_mode.py" gui
+# VNC 모드를 켠 상태에서 보호 선택
+/usr/bin/python3 "$HOME/.local/share/vnc-keyboard-mode/keyboard_mode.py" clipboard-on
+/usr/bin/python3 "$HOME/.local/share/vnc-keyboard-mode/keyboard_mode.py" clipboard-off
 ```
 
 `on`은 현재 한/영 전환키, 사용자 지정값 유무, x11vnc remap/skip_lockkeys를 먼저 백업합니다. 같은 모드를 다시 켜도 원래 설정을 덮어쓰지 않습니다. `off`는 그 설정을 복구합니다. 외부에서 다른 설정으로 바꾼 흔적이 있으면 임의로 덮어쓰지 않고 중단합니다. 이전 Caps Lock 전용 버전에서 갱신할 때도 최초 원본 백업을 유지하며, 저장된 이전 적용값만 업그레이드 대상으로 인정합니다.
