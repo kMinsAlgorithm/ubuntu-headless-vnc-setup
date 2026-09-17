@@ -7,11 +7,21 @@
 | VNC로 들어온 Caps Lock | Hangul 키로 변환 | 설치 전 VNC 매핑 복구 |
 | Mac 화면 공유의 두벌식 낱자 | 두벌식 영문 키로 변환 후 Ubuntu IBus에서 조합 | 기존 VNC 매핑 복구 |
 | 한/영 전환 | Caps Lock, Shift+Space, Control+Space | 켜기 전 입력기 설정 복구 |
+| Mac 화면 공유의 Cmd+C/V | Ctrl+C/V로 복사·붙여넣기 | 기존 VNC 매핑 복구 |
+| 기존 Ctrl 키 | 그대로 사용 | 그대로 사용 |
 | Cmd·Alt 단독 한/영 전환 | 해제 | 켜기 전 설정대로 복구 |
 | 대문자 | Shift+영문 키 | 기존 Caps Lock 기능 사용 가능 |
 | 이미 켜진 Caps Lock 잠금 | 해제 | 복구 시에도 잠금은 꺼진 상태로 시작 |
 
 VNC 키 매핑은 서버로 전달된 키에만 적용됩니다. IBus 전환키 설정은 같은 Ubuntu 사용자 전체에 적용되므로 직접 키보드를 사용할 때는 ‘직접 사용’을 선택합니다. 물리 키보드의 XKB 배열·Num Lock·Shift/Ctrl/Alt/Super 키 자체는 바꾸지 않습니다.
+
+## Cmd로 복사·붙여넣기
+
+Mac 기본 ‘화면 공유’의 실제 확인에서 **양쪽 Cmd 모두 `Alt_L`로 전달**됐습니다. VNC 모드에서 `Alt_L → Control_L`만 추가합니다. 일반 앱에서 **Cmd+C/V**는 복사·붙여넣기, **Cmd+A/X/Z**는 해당 앱의 전체 선택·잘라내기·되돌리기 단축키로 동작합니다. 기존 Ctrl도 계속 사용할 수 있습니다. 물리 키보드의 Ctrl/Cmd 위치를 바꾸거나 모든 앱에 Mac 단축키 전체를 구현하는 기능은 아닙니다.
+
+Ubuntu 터미널은 원래 복사·붙여넣기에 **Ctrl+Shift+C/V**를 사용하므로 이 모드에서는 **Cmd+Shift+C/V**를 사용합니다. Cmd+C는 Ctrl+C와 같은 터미널 인터럽트입니다.
+
+‘직접 사용’을 누르면 추가 Cmd 매핑도 원래 값으로 복구합니다. 이 추가 설정에는 관리자 인증이나 VNC 재시작이 필요 없습니다. Option과 Super 키를 일괄 변환하지 않습니다. 다른 VNC 앱/클라이언트가 Cmd를 다른 키로 보내면 그 클라이언트의 전달 키를 먼저 확인합니다. 이번 Cmd 설정의 실제 기기 확인 대상은 Mac 기본 화면 공유입니다.
 
 ## Mac 기본 ‘화면 공유’ 앱
 
@@ -128,7 +138,7 @@ VNC 서버가 이미 종료됐다면 기존 프로세스가 사라진 것을 확
 /usr/bin/python3 tests/probe_vnc_jamo.py
 ```
 
-33개 회귀 검사와 격리된 VNC 시험에서 Caps Lock 다섯 번→Hangul 다섯 번, 대문자 잠금 방지, 소문자·Shift 대문자·Super 유지, 원래 Caps Lock 기능 복구를 확인했습니다. 별도 Xvfb/IBus 시험에서 영문 키 입력→‘가나다’ 조합도 확인했습니다.
+34개 회귀 검사와 격리된 VNC 시험에서 Caps Lock 다섯 번→Hangul 다섯 번, 대문자 잠금 방지, 소문자·Shift 대문자·Super 유지, 원래 Caps Lock 기능 복구를 확인했습니다. 별도 Xvfb/IBus 시험에서 영문 키 입력→‘가나다’ 조합도 확인했습니다.
 
 추가 [VNC→IBus 통합 시험](tests/probe_vnc_jamo.py)은 실제 RFB로 Unicode 자모→가나다, Shift 자모→빤, legacy 자모→반, 영문 복귀·Shift 대문자·기호를 확인합니다. 임시 Xvfb/DBus/IBus와 loopback VNC만 사용하며 사용자 세션을 재시작하지 않습니다.
 

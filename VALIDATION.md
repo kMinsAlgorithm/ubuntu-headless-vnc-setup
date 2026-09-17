@@ -1,5 +1,14 @@
 # 검증 결과
 
+## 2026-09-18 Mac Cmd 단축키 추가 — 적용 확인 중
+
+- Mac 기본 화면 공유에서 전용 진단 창으로 양쪽 Cmd가 모두 Alt_L, Control이 Control_L로 전달됨을 확인. Option은 다른 키로 관측되어 변경 대상에서 제외.
+- VNC 모드에 Alt_L→Control_L 추가. 기존 Ctrl·Caps Lock·자모 보정 및 iPad Caps 모듈은 유지. 직접 사용 시 최초 VNC 매핑까지 복구.
+- 34개 회귀 검사 통과. 기존 Cmd 매핑과 숫자 별칭 복구, 다른 매핑 보존 확인.
+- 격리된 실제 RFB/GTK 시험에서 Cmd+A/C/V로 한글·영문 혼합 문장의 전체 선택·복사·붙여넣기 확인. 기존 iPad Caps 전달, 두 번째 Mac 접속, Shift·한글 조합도 함께 통과.
+- 격리된 X11 이벤트에서 Cmd→Ctrl, off 후 원래 Alt 전달 및 Caps 복구 확인.
+- 실제 PC에 설치·적용 완료. `mode=vnc`, `caps_bridge=1`, Caps 잠금 꺼짐 유지. VNC·IBus 재시작 없음. 실제 Mac 복사·붙여넣기 사용자 확인 대기.
+
 ## 2026-09-18 iPad RVNC Caps 상태 보정 — 사용자 정상 확인
 
 - 실제 iPad 이벤트에서 잠금 상태형 Caps 전달과 명시적 Shift를 구분. 이를 그대로 재현한 상태 보정 모듈 구현.

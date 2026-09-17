@@ -193,6 +193,20 @@ def worker():
                         "abc 가나다 빤 반 abc ABC !@? ㅊ c 반 c 빤 가나다 abc ",
                     )
                     other.close()
+                # macOS Screen Sharing sends either Command key as Alt_L.
+                # Exercise actual GTK clipboard actions, not just key event names.
+                previous = result.get('second_mac_client', result['back_to_latin'])
+                def command(letter):
+                    key(sock, 0xFFE9, True)
+                    tap(sock, ord(letter))
+                    key(sock, 0xFFE9, False)
+                    time.sleep(.2)
+                command('a')
+                command('c')
+                tap(sock, 0xFF57)  # End: deselect and append.
+                command('v')
+                time.sleep(.5)
+                record('command_copy_paste', previous + previous)
                 assert not k.caps_lock(), "Remapped Caps enabled uppercase lock"
             except BaseException as exc:
                 errors.append(repr(exc))

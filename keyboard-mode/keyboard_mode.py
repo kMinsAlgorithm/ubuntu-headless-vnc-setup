@@ -31,7 +31,9 @@ JAMO_KEYS = {
 
 
 def managed_remaps():
-    pairs = [('Caps_Lock', 'Hangul')]
+    # Both Command keys in the user's macOS Screen Sharing client send Alt_L.
+    # Control remains Control; Option sends a different keysym and is untouched.
+    pairs = [('Caps_Lock', 'Hangul'), ('Alt_L', 'Control_L')]
     for jamo, latin in JAMO_KEYS.items():
         # X11 keysymdef.h: legacy Hangul block is contiguous U+3131..U+3163.
         # Some clients send Unicode keysyms, others use the legacy names.
@@ -437,7 +439,7 @@ def gui():
             self.label = Gtk.Label(xalign=0)
             self.label.set_line_wrap(True)
             box.pack_start(self.label, False, False, 0)
-            note = Gtk.Label(label='VNC 모드: Caps Lock으로 한/영 전환\n대문자는 Shift와 함께 입력 · 보조키: Shift + Space\nCmd·Alt 단독 한/영 전환은 잠시 해제합니다.\n직접 사용: 저장해 둔 기존 키 설정으로 복구합니다.', xalign=0)
+            note = Gtk.Label(label='VNC 모드: Caps Lock으로 한/영 전환\n대문자는 Shift와 함께 입력 · 보조키: Shift + Space\nMac Cmd+C/V: 복사·붙여넣기 · 기존 Ctrl도 사용 가능\n직접 사용: 저장해 둔 기존 키 설정으로 복구합니다.', xalign=0)
             box.pack_start(note, False, False, 0)
             actions = Gtk.Box(spacing=12)
             for label, command in [('VNC 모드 켜기', 'on'), ('직접 사용 · 원래 설정', 'off')]:
@@ -449,7 +451,7 @@ def gui():
             entry.set_placeholder_text('여기서 Caps Lock → abc / 가나다 전환 확인')
             entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
             box.pack_start(entry, False, False, 0)
-            hint = Gtk.Label(label='Mac 화면 공유: 두벌식 낱자 입력을 조합하도록 보정합니다.\n한/영이 반대로 나오면 Shift + Space로 한 번 맞추세요.\niPad RVNC 보정은 추가 모듈이 설치된 서버에서 동작합니다.\n테스트 문장은 저장하지 않습니다. 설정은 Ubuntu 사용자 공통입니다.', xalign=0)
+            hint = Gtk.Label(label='Mac 화면 공유: 두벌식 낱자 입력을 조합하도록 보정합니다.\n한/영이 반대로 나오면 Shift + Space로 한 번 맞추세요.\nUbuntu 터미널의 복사·붙여넣기는 Cmd+Shift+C/V입니다.\n테스트 문장은 저장하지 않습니다. 설정은 Ubuntu 사용자 공통입니다.', xalign=0)
             hint.set_line_wrap(True)
             box.pack_start(hint, False, False, 0)
             close = Gtk.Button(label='닫기')

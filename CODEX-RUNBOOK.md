@@ -170,3 +170,5 @@ KEYBOARD-MODE.md의 설치·상태·적용·원복 명령을 사용한다. 기�
 Mac 기본 ‘화면 공유’에서 단일 두벌식 낱자가 전달되면 최신 VNC 모드의 자모→키 보정을 사용한다. Mac과 서버의 언어 상태가 어긋나면 Shift+Space 한 번으로 맞춘 뒤 재시험한다. 새 보정은 `tests/probe_vnc_jamo.py`에서 실제 RFB→IBus 경로로 확인한다. 과거 활성 모드에서 갱신해도 최초 원본 설정은 유지해야 한다. iPad RVNC의 대문자·된소리 순환은 실제 기기에서 별도로 재현하고, Mac 진단 결과로 대체하지 않는다. `nomodtweak`이나 A→a 전역 치환을 근거 없이 적용하지 않는다.
 
 실제 iPad RVNC가 Caps 상태를 down/up으로 번갈아 보내는 경우 선택형 Caps 보정 모듈을 KEYBOARD-MODE.md에 따라 빌드·격리 검증한다. 최신 사용자 프로그램이 먼저 설치돼 있어야 한다. 최초 시스템 연결만 관리자 인증과 VNC 재접속이 필요하며, GDM/Xorg/IBus는 재시작하지 않는다. 기존 직접 접속 옵션·인증 경로·실행기 백업을 보존한다. sudo 권한이 없으면 사용자에게 준비된 설치 명령의 인증을 요청하되 비밀번호를 채팅으로 받지 않는다. GUI 상태가 not-installed인 채로 iPad 문제가 해결됐다고 보고하지 않는다.
+
+Mac 기본 화면 공유의 양쪽 Cmd가 Alt_L로 전달되는 것을 실제 확인했다. VNC 모드에서는 Alt_L→Control_L로 연결하며 기존 Ctrl 키는 유지한다. 다른 뷰어의 Cmd/Option은 같다고 추정하지 않는다. 일반 앱 Cmd+C/V와 Ubuntu 터미널 Cmd+Shift+C/V를 구분하고, Cmd 추가를 위해 Caps 모듈 재빌드나 VNC 재시작을 하지 않는다.

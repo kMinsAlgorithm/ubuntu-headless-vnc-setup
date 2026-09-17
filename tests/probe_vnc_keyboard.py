@@ -122,6 +122,7 @@ def main():
             key(sock, 0xffe1, True)
             tap(sock, ord('A'))
             key(sock, 0xffe1, False)
+            tap(sock, 0xffe9)  # Screen Sharing Command becomes Control.
             tap(sock, 0xffeb)  # Super_L remains a modifier, not Hangul.
             time.sleep(.2)
             event_log.flush()
@@ -130,12 +131,18 @@ def main():
             assert 'keysym 0x61, a' in events
             assert 'keysym 0x41, A' in events
             assert 'keysym 0xffeb, Super_L' in events
+            assert 'keysym 0xffe3, Control_L' in events
+            assert 'keysym 0xffe9, Alt_L' not in events
             k.disable_mode(backend)
             assert backend.vnc() == original
+            tap(sock, 0xffe9)
+            time.sleep(.2)
+            assert 'keysym 0xffe9, Alt_L' in (folder / 'events.log').read_text()
             tap(sock, 0xffe5)
             assert k.caps_lock(), 'Original Caps Lock function was not restored'
             print(json.dumps({'isolated_rfb_caps_to_hangul_pairs': 5, 'vnc_caps_lock': False,
                               'lowercase_a': True, 'shift_uppercase_A': True, 'super_preserved': True,
+                              'command_to_control': True, 'original_command_restored': True,
                               'original_caps_function_restored': True, 'actual_ibus_text': 'not tested in this probe'}))
         finally:
             if sock:

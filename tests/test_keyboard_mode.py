@@ -177,6 +177,21 @@ class KeyboardModeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, '외부'):
             k.disable_mode(self.backend)
 
+    def test_command_mapping_restores_aliases_without_swapping_physical_control(self):
+        original = 'Alt_L-Super_L,0xFFE9-Meta_L,Meta_L-Alt_R,F8-F9'
+        self.backend.current_vnc['remap'] = original
+        k.enable_mode(self.backend)
+        active = self.backend.vnc()['remap'].split(',')
+        self.assertIn('Alt_L-Control_L', active)
+        self.assertIn('Meta_L-Alt_R', active)
+        self.assertIn('F8-F9', active)
+        self.assertNotIn('Alt_L-Super_L', active)
+        self.assertNotIn('0xFFE9-Meta_L', active)
+        self.assertFalse(any(pair.startswith('Control_L-') for pair in active))
+        self.assertFalse(any(pair.startswith('Super_L-') for pair in active))
+        k.disable_mode(self.backend)
+        self.assertEqual(self.backend.vnc()['remap'], original)
+
     def test_backup_is_private(self):
         k.enable_mode(self.backend)
         for path in self.folder.glob('*.json'):
