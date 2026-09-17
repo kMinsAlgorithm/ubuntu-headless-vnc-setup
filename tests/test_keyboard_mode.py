@@ -192,6 +192,18 @@ class KeyboardModeTests(unittest.TestCase):
         k.disable_mode(self.backend)
         self.assertEqual(self.backend.vnc()['remap'], original)
 
+    def test_ipad_software_jamo_aliases_and_restore(self):
+        original = '0x3141-F4,F8-F9'
+        self.backend.current_vnc['remap'] = original
+        k.enable_mode(self.backend)
+        mappings = self.backend.vnc()['remap'].split(',')
+        for expected in ('0x3141-a', '0x3160-b', '0x314a-c', '0x3143-Q'):
+            self.assertIn(expected, mappings)
+        self.assertNotIn('0x3141-F4', mappings)
+        self.assertFalse(any(pair.startswith(('0x3133-', '0xac00-')) for pair in mappings))
+        k.disable_mode(self.backend)
+        self.assertEqual(self.backend.vnc()['remap'], original)
+
     def test_backup_is_private(self):
         k.enable_mode(self.backend)
         for path in self.folder.glob('*.json'):

@@ -150,6 +150,10 @@ def worker():
                 send_text(" ")
                 time.sleep(0.5)
                 record("legacy_jamo", "abc 가나다 빤 반 ")
+                # Actual iPad software keyboard uses bare UCS code points.
+                send_text("ㄱㅏㄴㅏㄷㅏ ㅃㅏㄴ ")
+                time.sleep(0.5)
+                record("ipad_software_jamo", "abc 가나다 빤 반 가나다 빤 ")
                 tap(sock, 0xFFE5)
                 send_text("abc ")
                 key(sock, 0xFFE1, True)
@@ -157,7 +161,7 @@ def worker():
                 key(sock, 0xFFE1, False)
                 send_text(" !@? ")
                 time.sleep(0.5)
-                record("back_to_latin", "abc 가나다 빤 반 abc ABC !@? ")
+                record("back_to_latin", "abc 가나다 빤 반 가나다 빤 abc ABC !@? ")
                 if "VNC_TEST_CAPS_BRIDGE" in os.environ:
                     # Actual observed RVNC iPad pattern: Caps down, uppercase
                     # letters, Caps up, lowercase letters. Physical Shift is separate.
@@ -176,7 +180,7 @@ def worker():
                     send_text("KS ")
                     time.sleep(0.5)
                     record(
-                        "ipad_state_caps", "abc 가나다 빤 반 abc ABC !@? ㅊ c 반 c 빤 "
+                        "ipad_state_caps", "abc 가나다 빤 반 가나다 빤 abc ABC !@? ㅊ c 반 c 빤 "
                     )
                     key(sock, 0xFFE5, False)
                     # A second client (Mac) must not inherit the iPad latch state.
@@ -190,7 +194,7 @@ def worker():
                     time.sleep(0.5)
                     record(
                         "second_mac_client",
-                        "abc 가나다 빤 반 abc ABC !@? ㅊ c 반 c 빤 가나다 abc ",
+                        "abc 가나다 빤 반 가나다 빤 abc ABC !@? ㅊ c 반 c 빤 가나다 abc ",
                     )
                     other.close()
                 # macOS Screen Sharing sends either Command key as Alt_L.

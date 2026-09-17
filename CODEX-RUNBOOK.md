@@ -180,3 +180,5 @@ iPad RVNC의 Cmd+C/V가 Control+c/v로 정상 도착해도 클립보드 왕복 �
 `clipboard-off`는 원래 수신 설정, `off`는 키보드와 수신 설정을 함께 복구한다. `status`의 `clipboard_protection`, `clipboard_receive`를 확인한다. 기존 활성 프로필 업그레이드는 새 수신 필드만 현재 값으로 추가하고 원래 키 매핑 백업을 보존한다. 보호만 전환하면서 Caps 보정 세대나 정상 키 매핑을 초기화하지 않는다. 원문 자체를 클립보드에서 읽거나 세션 전체를 기록하지 않는다.
 
 검사: `/usr/bin/python3 -m unittest discover -s tests -v`, `/usr/bin/python3 tests/probe_vnc_clipboard.py`. 후자는 별도 Xvfb/loopback VNC만 사용하고, 창 관리자가 없는 환경의 x11vnc 초기 대기 때문에 약 50초가 걸린다. 실제 VNC는 재시작하지 않는다.
+
+화면 키보드에서 특수문자가 나오는 경우 물리 키보드와 같은 코드라고 추정하지 않는다. 실제 iPad RVNC에서 확인한 bare 자모 코드(예: `0x3141`)도 보정 대상이다. `U3141` 또는 legacy `0xeb1`만 검사해서 완료라고 하지 않는다. 지정한 최소 키만 관측하고 `tests/probe_vnc_jamo.py`의 `ipad_software_jamo`를 함께 검사한다.

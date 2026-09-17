@@ -37,9 +37,12 @@ def managed_remaps():
     pairs = [('Caps_Lock', 'Hangul'), ('Alt_L', 'Control_L')]
     for jamo, latin in JAMO_KEYS.items():
         # X11 keysymdef.h: legacy Hangul block is contiguous U+3131..U+3163.
-        # Some clients send Unicode keysyms, others use the legacy names.
+        # iPad RVNC software keyboard also sends bare Unicode code points
+        # as keysyms (observed 0x3141/0x3160/0x314a). Limit this alias to
+        # the same single two-beolsik jamo; do not reinterpret other keys.
         pairs.extend([(f'U{ord(jamo):04X}', latin),
-                      (f'0x{0xEA1 + ord(jamo) - 0x3131:x}', latin)])
+                      (f'0x{0xEA1 + ord(jamo) - 0x3131:x}', latin),
+                      (f'0x{ord(jamo):x}', latin)])
     return pairs
 
 
@@ -487,7 +490,7 @@ def gui():
             entry.set_placeholder_text('여기서 Caps Lock → abc / 가나다 전환 확인')
             entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
             box.pack_start(entry, False, False, 0)
-            hint = Gtk.Label(label='Mac 화면 공유: 두벌식 낱자 입력을 조합하도록 보정합니다.\n한/영이 반대로 나오면 Shift + Space로 한 번 맞추세요.\nUbuntu 터미널의 복사·붙여넣기는 Cmd+Shift+C/V입니다.\n테스트 문장은 저장하지 않습니다. 설정은 Ubuntu 사용자 공통입니다.', xalign=0)
+            hint = Gtk.Label(label='Mac·iPad: 두벌식 낱자 입력을 조합하도록 보정합니다.\n한/영이 반대로 나오면 Shift + Space로 한 번 맞추세요.\nUbuntu 터미널의 복사·붙여넣기는 Cmd+Shift+C/V입니다.\n테스트 문장은 저장하지 않습니다. 설정은 Ubuntu 사용자 공통입니다.', xalign=0)
             hint.set_line_wrap(True)
             box.pack_start(hint, False, False, 0)
             close = Gtk.Button(label='닫기')
