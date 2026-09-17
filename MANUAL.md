@@ -2,6 +2,8 @@
 
 작성일: 2026-09-15 · 기본 OS: Ubuntu Desktop 22.04 LTS · 고려 OS: Ubuntu Desktop 24.04 LTS
 
+**경로 선택:** 이 본문은 헤드리스 VNC 기반 구성과 **실물 모니터 자동 감지**를 다룹니다. 기존 VNC에 Mac/iPad 수동 해상도 선택기만 추가할 때는 [DISPLAY-PROFILES.md](DISPLAY-PROFILES.md)를 따릅니다. 2026-09-17 기준 PC는 수동 경로이며, 본문의 watcher enable/restart 예시를 적용하지 않습니다. 선택기 설치에는 재부팅이나 VNC/GDM 재시작이 필요하지 않습니다.
+
 ## 1. 목표와 검증 범위
 
 1. 모니터가 있으면 Ubuntu의 주 모니터 화면을 원격에서 조작한다.
@@ -291,6 +293,8 @@ sudo install -m 644 "$TASK_ROOT/staging/20-nvidia-virtual-monitor.conf" /etc/X11
 
 ### 7.3 사용자 서비스
 
+**자동 모니터 감지 경로 전용입니다.** Mac/iPad 수동 선택기 경로에서는 이 서비스를 disabled/inactive로 두고 아래 설치·enable을 건너뜁니다.
+
 값 치환이 필요한 템플릿입니다. systemd의 `Environment=`에서는 셸 변수 `$TARGET_UID` 등을 자동 확장하지 않습니다.
 
 ```ini
@@ -542,12 +546,14 @@ env DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority xrandr --query
 기대 결과:
 
 - 대상 사용자의 자동 로그인 세션이며 `Type=x11`이다.
-- VNC와 감지 서비스가 실행 중이다.
+- VNC가 실행 중이다. 자동 모니터 경로에서는 감지 서비스도 실행 중이고, Mac/iPad 수동 경로에서는 감지 서비스가 disabled/inactive여야 한다.
 - 실제 또는 가상 화면에 유효한 너비·높이가 있다.
 - 의도한 주소·포트만 수신한다.
 - 외부 뷰어에서 화면과 입력을 사용할 수 있다.
 
 ### 11.3 서비스만 별도 적용
+
+아래 예시는 자동 모니터 감지/VNC 서비스 자체를 수정한 경우입니다. **Mac/iPad 선택기만 설치하는 경우는 이 절 전체를 건너뜁니다.**
 
 이미 Xorg가 준비돼 있고 서비스·스크립트만 바꾼 경우, 현재 원격 작업을 확인하고 해당 서비스만 적용합니다.
 
@@ -612,6 +618,8 @@ VNC 재시작은 원격 연결을 끊고 감지 서비스는 화면을 바꿀 �
 | 서버 내부에서만 VNC 접속됨 | -localhost 적용 여부 | 기본 직접 접속 수신 설정으로 복구하고 포트 확인 |
 | 로컬만 되고 외부는 안 됨 | 공유기·NAT·방화벽 | 실제 외부망에서 경로별 시험 |
 | 마우스 좌표 어긋남 | 배율·회전·clip | 실제 배치와 공유 영역 비교 |
+| 선택한 해상도가 몇 초 후 되돌아감 | 자동 watcher·이를 시작하는 서비스 | 수동 경로는 disabled/inactive 유지; DISPLAY-PROFILES 참고 |
+| iPad 글씨가 흐림·아래 잘림 | VNC scale·실제 해상도·뷰어 배율 | 1600×1050, scale=1, 비율 유지·화면에 맞춤 확인 |
 | 그래픽 앱이 느림 | 렌더러·화면 크기·네트워크 | GPU 가속과 갱신 옵션을 분리해 조사 |
 
 로그는 필요한 범위만 읽습니다.

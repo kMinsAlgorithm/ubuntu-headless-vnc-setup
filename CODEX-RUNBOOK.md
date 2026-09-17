@@ -1,5 +1,34 @@
 # Codex 작업 지침: Ubuntu 가상 디스플레이와 VNC
 
+## 먼저 작업 경로 선택
+
+- **기존 VNC에서 Mac/iPad 해상도를 선택**: 아래 프롬프트와 [DISPLAY-PROFILES.md](DISPLAY-PROFILES.md)를 사용한다. 현재 기준 PC의 경로다.
+- **새 PC에 헤드리스 VNC·실물 모니터 자동 전환을 구축**: 1절의 기존 설치 프롬프트와 MANUAL을 사용한다. 수동 선택기와 자동 watcher를 동시에 활성화하지 않는다.
+
+### Mac/iPad 선택기용 시작 프롬프트
+
+```text
+기존 VNC에 Mac/iPad 해상도 선택기를 설치하고 Codex CLI도 사용할 수 있게 해줘.
+레포 경로: /실제/경로/ubuntu-headless-vnc-manual
+AGENTS.md, README.md, DISPLAY-PROFILES.md, REFERENCE-STATE.md를 읽어.
+현재 데스크톱 사용자·Xorg 출력·DISPLAY·XAUTHORITY 경로·사용자 DBus·VNC를 먼저 확인해.
+인증 파일 내용과 비밀번호는 읽거나 출력하지 마.
+설치기 --check와 오프라인 검사를 통과한 뒤 기존 파일을 백업해서 설치해.
+수동 선택과 충돌하는 adaptive-display-mode.service는 중지하고 자동 시작도 꺼.
+다른 서비스가 이 watcher를 다시 시작하지 않는지 확인해.
+iPad 기본값은 1600×1050, Mac은 1920×1080이고 VNC 배율은 모두 1이야.
+이 요청은 선택기 설치와 iPad 프로필 적용·유지를 포함해. 기존에 같은 설정이면 유지해.
+CLI status로 조회하고, 적용이 필요하면 apply ipad --keep을 사용해.
+선택기 창과 CLI를 동시에 조작하지 말고 복구 프로세스를 생략하지 마.
+GDM/Xorg/VNC 재시작이나 재부팅은 선택기 설치에 필요하지 않아.
+현재 VNC 직접 접속 방식과 실행 중인 프로그램을 유지해.
+설치본·현재 화면·35초 이후 유지 상태·백업 위치와 실제 통과/미실시를 기록해.
+재부팅 후 마지막 선택 복원, 다른 기기에서의 선명도 확인을 완료한 것으로 추정하지 마.
+이미 허용된 작업을 다시 승인받지 말고 설치·확인·문서화를 마무리해.
+```
+
+Codex용 CLI는 `scripts/display-profile.py status`, `apply ipad`(미리보기 후 복구), `apply ipad --keep`(유지)다. 설치 후에는 `~/.local/share/vnc-resolution-switcher/display_profile.py`를 사용한다. [설치·검증·복구 절차](DISPLAY-PROFILES.md)를 따른다. 수동 경로에 전체 VNC 재설치 단계 A~F를 기계적으로 적용하지 않는다.
+
 ## 1. 대상 PC에서 사용할 시작 프롬프트
 
 아래 폴더 경로를 **압축을 푼 실제 경로**로 바꿔 Codex에게 전달합니다. 이 예시는 설정 작업을 지시합니다. 조사만 원하면 마지막 문장을 “읽기 전용 조사와 적용안 작성까지만 진행해”로 바꿉니다.

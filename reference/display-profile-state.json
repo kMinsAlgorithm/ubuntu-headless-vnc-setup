@@ -1,0 +1,102 @@
+{
+  "recorded_date": "2026-09-17",
+  "policy": "manual-mac-ipad",
+  "verified_environment": {
+    "os": "Ubuntu 22.04.5",
+    "gpu": "NVIDIA GeForce RTX 2070 SUPER",
+    "session": "Xorg",
+    "vnc": "x11vnc",
+    "active_outputs": 1,
+    "position": [
+      0,
+      0
+    ],
+    "rotation": "normal"
+  },
+  "accepted_profile": {
+    "key": "ipad",
+    "desktop": "1600x1050",
+    "output": "HDMI-0",
+    "rate_hz": 59.97,
+    "vnc_scale": "1",
+    "transmitted_framebuffer": "1600x1050"
+  },
+  "profiles": {
+    "mac": "1920x1080",
+    "ipad": "1600x1050",
+    "ipad-landscape": "1184x824",
+    "ipad-large-text": "1024x768"
+  },
+  "all_profiles_vnc_scale": "1",
+  "services": {
+    "adaptive-display-mode.service": {
+      "scope": "user",
+      "enabled": "disabled",
+      "active": "inactive",
+      "definition_preserved": true
+    },
+    "x11vnc-physical-policy.service": {
+      "scope": "user",
+      "enabled": "disabled",
+      "active": "inactive"
+    },
+    "x11vnc-physical.service": {
+      "scope": "system",
+      "enabled": "enabled",
+      "active": "active",
+      "restarted_for_selector_install": false
+    }
+  },
+  "rollback": {
+    "timeout_seconds": 20,
+    "snapshot": [
+      "output",
+      "mode",
+      "rate",
+      "NVIDIA metamode when available",
+      "VNC scale",
+      "normal window geometry"
+    ]
+  },
+  "persistence": "Current X session only. Reopen chooser or use CLI after login/reboot; no last-profile autostart installed.",
+  "user_confirmation": {
+    "clarity": "confirmed after native-pixel transmission",
+    "final_height": "accepted after 1600x1050 adjustment",
+    "client_app": "not identified",
+    "ipad_exact_model": "not confirmed"
+  },
+  "packaging_validation": {
+    "offline_tests": 18,
+    "installed_cli_apply_ipad_keep": "unchanged",
+    "installed_files_match_repository": true,
+    "display_retained_after_35_seconds": true
+  },
+  "not_verified": [
+    "fresh machine",
+    "Ubuntu 24.04",
+    "other GPU",
+    "Wayland",
+    "multiple active outputs",
+    "new reboot",
+    "physical monitor hotplug"
+  ],
+  "previous_system_snapshot": "source-manifest.json",
+  "files": [
+    {
+      "bundle_path": "resolution-switcher/resolution_switcher.py",
+      "sha256": "d91ba2e5b49a54b7f89193ec083417ad39e46ffe632744df807236b7c781cdbc"
+    },
+    {
+      "bundle_path": "resolution-switcher/display.svg",
+      "sha256": "5e2e5df9b92fe8c9a3a0ea438bc4cc58f08f781907c3babf25c865fe80f5ae06"
+    },
+    {
+      "bundle_path": "scripts/display-profile.py",
+      "sha256": "b22ab1841d62f42d4c393ad034dc108dd69e0357e61103081cf50f733e516f6a"
+    },
+    {
+      "bundle_path": "scripts/install-resolution-switcher.py",
+      "sha256": "05e88a4ecbf8cfa68bd22c6dfd4e29d2556c3ffa4a7a70d9ad9e326304f906ba"
+    }
+  ]
+}
