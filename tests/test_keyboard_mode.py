@@ -51,7 +51,7 @@ class KeyboardModeTests(unittest.TestCase):
         ime, vnc = self.backend.ime(), self.backend.vnc()
         k.enable_mode(self.backend)
         self.assertEqual(self.backend.current_ime, k.TARGET_IME)
-        self.assertEqual(self.backend.current_vnc['remap'], 'F8-F9,Caps_Lock-Hangul')
+        self.assertTrue(self.backend.current_vnc['remap'].startswith('F8-F9,Caps_Lock-Hangul,'))
         self.assertEqual(self.backend.current_vnc['skip_lockkeys'], '0')
         self.assertFalse(self.backend.caps)
         k.disable_mode(self.backend)
@@ -118,9 +118,64 @@ class KeyboardModeTests(unittest.TestCase):
     def test_conflicting_caps_mapping_is_restored(self):
         self.backend.current_vnc['remap'] = 'Caps_Lock-Escape,F8-F9'
         k.enable_mode(self.backend)
-        self.assertEqual(self.backend.current_vnc['remap'], 'F8-F9,Caps_Lock-Hangul')
+        self.assertTrue(self.backend.current_vnc['remap'].startswith('F8-F9,Caps_Lock-Hangul,'))
         k.disable_mode(self.backend)
         self.assertEqual(self.backend.current_vnc['remap'], 'Caps_Lock-Escape,F8-F9')
+
+    def test_upgrade_enabled_caps_only_profile_preserves_original_settings(self):
+        before = self.backend.ime(), self.backend.vnc()
+        with patch.object(k, 'remap_for_vnc', return_value='F8-F9,Caps_Lock-Hangul'):
+            k.enable_mode(self.backend)
+        k.enable_mode(self.backend)
+        self.assertIn('U3131-r', self.backend.vnc()['remap'])
+        k.disable_mode(self.backend)
+        self.assertEqual((self.backend.ime(), self.backend.vnc()), before)
+        self.assertEqual(len(list(self.folder.glob('backup-*.json'))), 1)
+
+    def test_jamo_alias_conflicts_restore_and_other_keys_stay_untouched(self):
+        original = 'Hangul_Kiyeog-F1,0x01003131-F2,U314F-F3,0xFFE5-Escape,F8-F9'
+        self.backend.current_vnc['remap'] = original
+        k.enable_mode(self.backend)
+        actual = self.backend.vnc()['remap']
+        self.assertNotIn('-F1', actual)
+        self.assertNotIn('-F2', actual)
+        self.assertNotIn('-F3', actual)
+        self.assertNotIn('-Escape', actual)
+        self.assertTrue(actual.startswith('F8-F9,Caps_Lock-Hangul,'))
+        self.assertIn('U3143-Q', actual)  # Deliberately shifted ㅃ must remain shifted.
+        self.assertNotIn('U3133-', actual)  # Compound ㄳ is not one keystroke.
+        self.assertNotIn('UAC00-', actual)  # Committed 가 is not a keystroke.
+        self.assertNotIn('A-a', actual)  # Do not erase actual Shift/case.
+        k.disable_mode(self.backend)
+        self.assertEqual(self.backend.vnc()['remap'], original)
+
+    def test_upgrade_failure_restores_previous_enabled_profile(self):
+        with patch.object(k, 'remap_for_vnc', return_value='F8-F9,Caps_Lock-Hangul'):
+            k.enable_mode(self.backend)
+        old_state = k.load_state()
+        before = self.backend.ime(), self.backend.vnc()
+        self.backend.fail_once = True
+        with self.assertRaisesRegex(RuntimeError, 'simulated'):
+            k.enable_mode(self.backend)
+        self.assertEqual((self.backend.ime(), self.backend.vnc()), before)
+        self.assertEqual(k.load_state(), old_state)
+
+    def test_optional_caps_bridge_enables_and_restores_exact_baseline(self):
+        self.backend.current_vnc['caps_bridge'] = '0'
+        before = self.backend.vnc()
+        k.enable_mode(self.backend)
+        self.assertEqual(self.backend.vnc()['caps_bridge'], '1')
+        k.disable_mode(self.backend)
+        self.assertEqual(self.backend.vnc(), before)
+
+    def test_stale_optional_bridge_setting_is_not_accepted(self):
+        self.backend.current_vnc['caps_bridge'] = '0'
+        k.enable_mode(self.backend)
+        self.backend.current_vnc['caps_bridge'] = 'unrecognized'
+        with self.assertRaisesRegex(RuntimeError, '외부'):
+            k.enable_mode(self.backend)
+        with self.assertRaisesRegex(RuntimeError, '외부'):
+            k.disable_mode(self.backend)
 
     def test_backup_is_private(self):
         k.enable_mode(self.backend)

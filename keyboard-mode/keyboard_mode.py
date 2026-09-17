@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Reversible x11vnc Caps Lock -> Hangul profile, with a small desktop chooser."""
+"""Reversible x11vnc Korean keyboard profile, with a small desktop chooser."""
 import argparse
 from contextlib import contextmanager, nullcontext
 import ctypes
@@ -18,6 +18,26 @@ STATE_DIR = Path.home() / '.local/state/vnc-keyboard-mode'
 STATE_FILE = STATE_DIR / 'state.json'
 UNIT = 'vnc-keyboard-mode.service'
 SWITCH_KEYS = 'Hangul,Shift+space,Control+space'
+# Single keystrokes on a Korean two-beolsik keyboard. Do not map compound
+# jamo or committed syllables: those cannot be represented by one key event.
+JAMO_KEYS = {
+    'ㄱ': 'r', 'ㄲ': 'R', 'ㄴ': 's', 'ㄷ': 'e', 'ㄸ': 'E', 'ㄹ': 'f',
+    'ㅁ': 'a', 'ㅂ': 'q', 'ㅃ': 'Q', 'ㅅ': 't', 'ㅆ': 'T', 'ㅇ': 'd',
+    'ㅈ': 'w', 'ㅉ': 'W', 'ㅊ': 'c', 'ㅋ': 'z', 'ㅌ': 'x', 'ㅍ': 'v', 'ㅎ': 'g',
+    'ㅏ': 'k', 'ㅐ': 'o', 'ㅑ': 'i', 'ㅒ': 'O', 'ㅓ': 'j', 'ㅔ': 'p',
+    'ㅕ': 'u', 'ㅖ': 'P', 'ㅗ': 'h', 'ㅛ': 'y', 'ㅜ': 'n', 'ㅠ': 'b',
+    'ㅡ': 'm', 'ㅣ': 'l',
+}
+
+
+def managed_remaps():
+    pairs = [('Caps_Lock', 'Hangul')]
+    for jamo, latin in JAMO_KEYS.items():
+        # X11 keysymdef.h: legacy Hangul block is contiguous U+3131..U+3163.
+        # Some clients send Unicode keysyms, others use the legacy names.
+        pairs.extend([(f'U{ord(jamo):04X}', latin),
+                      (f'0x{0xEA1 + ord(jamo) - 0x3131:x}', latin)])
+    return pairs
 
 
 
@@ -80,8 +100,17 @@ def remap_for_vnc(original):
     pairs = original.split(',') if original else []
     if any(not re.fullmatch(r'[A-Za-z0-9_]+-[A-Za-z0-9_]+', pair) for pair in pairs):
         raise RuntimeError('기존 VNC remap이 파일 또는 특수 형식입니다. 기존 매핑 검토가 필요합니다.')
-    pairs = [pair for pair in pairs if pair.split('-', 1)[0] not in ('Caps_Lock', '0xffe5', '0xFFE5')]
-    return ','.join([*pairs, 'Caps_Lock-Hangul'])
+    mappings = managed_remaps()
+    lib = ctypes.CDLL(ctypes.util.find_library('X11') or 'libX11.so.6')
+    lib.XStringToKeysym.argtypes = [ctypes.c_char_p]
+    lib.XStringToKeysym.restype = ctypes.c_ulong
+
+    def number(name):
+        return int(name, 16) if name.lower().startswith('0x') else lib.XStringToKeysym(name.encode('ascii'))
+
+    owned = {number(source) for source, _ in mappings}
+    pairs = [pair for pair in pairs if number(pair.split('-', 1)[0]) not in owned]
+    return ','.join([*pairs, *(f'{source}-{target}' for source, target in mappings)])
 
 
 class XkbState(ctypes.Structure):
@@ -116,6 +145,53 @@ def caps_lock(clear=False):
         return bool((state.locked_mods | state.latched_mods) & 2)
     finally:
         lib.XCloseDisplay(display)
+
+
+def x_cardinal(name, value=None):
+    """Read/write our small X11 control properties, never keyboard events."""
+    lib = ctypes.CDLL(ctypes.util.find_library('X11') or 'libX11.so.6')
+    ptr, ulong = ctypes.c_void_p, ctypes.c_ulong
+    lib.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    lib.XOpenDisplay.restype = ptr
+    lib.XDefaultRootWindow.argtypes = [ptr]
+    lib.XDefaultRootWindow.restype = ulong
+    lib.XInternAtom.argtypes = [ptr, ctypes.c_char_p, ctypes.c_int]
+    lib.XInternAtom.restype = ulong
+    lib.XGetWindowProperty.argtypes = [ptr, ulong, ulong, ctypes.c_long, ctypes.c_long,
+        ctypes.c_int, ulong, ctypes.POINTER(ulong), ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ulong), ctypes.POINTER(ulong), ctypes.POINTER(ptr)]
+    lib.XChangeProperty.argtypes = [ptr, ulong, ulong, ulong, ctypes.c_int, ctypes.c_int, ptr, ctypes.c_int]
+    lib.XSync.argtypes = [ptr, ctypes.c_int]
+    lib.XFree.argtypes = [ptr]
+    lib.XCloseDisplay.argtypes = [ptr]
+    display = lib.XOpenDisplay(None)
+    if not display:
+        raise RuntimeError('X11 키보드 보정 상태에 접근하지 못했습니다.')
+    data = ptr()
+    try:
+        root = lib.XDefaultRootWindow(display)
+        atom = lib.XInternAtom(display, name.encode(), False)
+        if value is not None:
+            payload = (ulong * len(value))(*value)
+            lib.XChangeProperty(display, root, atom, 6, 32, 0, payload, len(value))
+            lib.XSync(display, False)
+        kind, count, after, form = ulong(), ulong(), ulong(), ctypes.c_int()
+        result = lib.XGetWindowProperty(display, root, atom, 0, 4, False, 6,
+            ctypes.byref(kind), ctypes.byref(form), ctypes.byref(count), ctypes.byref(after), ctypes.byref(data))
+        if result or kind.value != 6 or form.value != 32 or after.value or not data.value:
+            return []
+        return list(ctypes.cast(data, ctypes.POINTER(ulong))[:count.value])
+    finally:
+        if data.value:
+            lib.XFree(data)
+        lib.XCloseDisplay(display)
+
+
+def target_server(original):
+    target = {**original, 'remap': remap_for_vnc(original['remap']), 'skip_lockkeys': '0'}
+    if 'caps_bridge' in original:
+        target['caps_bridge'] = '1'
+    return target
 
 
 def server_identity(pid):
@@ -164,13 +240,24 @@ class Backend:
             raise RuntimeError('x11vnc 원격 제어 상태를 읽지 못했습니다.')
         if values['skip_lockkeys'] not in ('0', '1'):
             raise RuntimeError('x11vnc 잠금 키 처리 값을 확인하지 못했습니다.')
-        return {'identity': server_identity(values['pid']), 'remap': values['remap'],
-                'skip_lockkeys': values['skip_lockkeys']}
+        result = {'identity': server_identity(values['pid']), 'remap': values['remap'],
+                  'skip_lockkeys': values['skip_lockkeys']}
+        if x_cardinal('_VNC_KEYBOARD_CAPS_BRIDGE') == [int(values['pid']), 1]:
+            result['caps_bridge'] = '1' if any(x_cardinal('_VNC_KEYBOARD_CAPS_MODE')) else '0'
+        return result
 
     def set_vnc(self, target):
+        if 'caps_bridge' in target:
+            pid = int(target['identity'].split(':')[1])
+            if x_cardinal('_VNC_KEYBOARD_CAPS_BRIDGE') != [pid, 1]:
+                raise RuntimeError('iPad 보정 모듈의 서버가 변경되었습니다. 다시 상태를 확인하세요.')
+            if target['caps_bridge'] == '0':
+                x_cardinal('_VNC_KEYBOARD_CAPS_MODE', [0])
         # skip_lockkeys is evaluated before remap in x11vnc, so it must be off.
         run('/usr/bin/x11vnc', '-sync', '-R', 'remap:' + target['remap'])
         run('/usr/bin/x11vnc', '-sync', '-R', 'skip_lockkeys' if target['skip_lockkeys'] == '1' else 'noskip_lockkeys')
+        if target.get('caps_bridge') == '1':
+            x_cardinal('_VNC_KEYBOARD_CAPS_MODE', [(time.monotonic_ns() & 0x7fffffff) | 1])
         if self.vnc() != target:
             raise RuntimeError('VNC 키 매핑 확인에 실패했습니다.')
 
@@ -202,11 +289,17 @@ def enable_mode(backend):
             # A new server has its own baseline; do not restore another process's options.
             state['original_vnc'] = server
         else:
-            target = {**state['original_vnc'], 'remap': remap_for_vnc(state['original_vnc']['remap']), 'skip_lockkeys': '0'}
+            target = target_server(state['original_vnc'])
             # A process can be interrupted between the two remote commands.
-            for key in ('remap', 'skip_lockkeys'):
+            for key in ('remap', 'skip_lockkeys', *(('caps_bridge',) if 'caps_bridge' in state['original_vnc'] else ())):
+                # Accept the last target we actually saved when upgrading an
+                # enabled older profile, but never arbitrary external edits.
+                saved_target = state.get('target_vnc', {})
+                if (saved_target.get('identity') == server['identity']
+                        and server[key] == saved_target.get(key)):
+                    continue
                 assert_compatible(server[key], state['original_vnc'][key], target[key], 'VNC ' + key)
-    target = {**state['original_vnc'], 'remap': remap_for_vnc(state['original_vnc']['remap']), 'skip_lockkeys': '0'}
+    target = target_server(state['original_vnc'])
     state.update(phase='applying', target_vnc=target)
     atomic_json(STATE_FILE, state)
     try:
@@ -251,7 +344,7 @@ def disable_mode(backend):
         server = None
     same_server = server and server['identity'] == state['original_vnc']['identity']
     if same_server:
-        for key in ('remap', 'skip_lockkeys'):
+        for key in ('remap', 'skip_lockkeys', *(('caps_bridge',) if 'caps_bridge' in state['original_vnc'] else ())):
             assert_compatible(server[key], state['original_vnc'][key], state['target_vnc'][key], 'VNC ' + key)
     if same_server:
         backend.set_vnc(state['original_vnc'])
@@ -271,6 +364,7 @@ def status(backend):
     return {'mode': 'vnc' if effective else ('needs-apply' if requested else 'local'),
             'enabled': requested, 'caps_lock': caps_lock(), 'switch_keys': ime['value'],
             'vnc_remap': server['remap'], 'skip_lockkeys': server['skip_lockkeys'],
+            'caps_bridge': server.get('caps_bridge', 'not-installed'),
             'backup_directory': str(STATE_DIR)}
 
 
@@ -355,7 +449,7 @@ def gui():
             entry.set_placeholder_text('여기서 Caps Lock → abc / 가나다 전환 확인')
             entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
             box.pack_start(entry, False, False, 0)
-            hint = Gtk.Label(label='Mac/iPad 입력 언어는 ABC/영문으로 두세요.\nCaps Lock이 기기 언어까지 바꾸면 Shift + Space를 사용하세요.\n테스트 문장은 파일이나 로그에 저장하지 않습니다.\n이 모드의 입력기 설정은 같은 Ubuntu 사용자에게 적용됩니다.', xalign=0)
+            hint = Gtk.Label(label='Mac 화면 공유: 두벌식 낱자 입력을 조합하도록 보정합니다.\n한/영이 반대로 나오면 Shift + Space로 한 번 맞추세요.\niPad RVNC 보정은 추가 모듈이 설치된 서버에서 동작합니다.\n테스트 문장은 저장하지 않습니다. 설정은 Ubuntu 사용자 공통입니다.', xalign=0)
             hint.set_line_wrap(True)
             box.pack_start(hint, False, False, 0)
             close = Gtk.Button(label='닫기')
@@ -368,7 +462,8 @@ def gui():
             try:
                 info = status(Backend())
                 name = {'vnc': 'VNC 모드 켜짐', 'local': '직접 사용 · 기존 설정', 'needs-apply': 'VNC 모드 재적용 필요'}[info['mode']]
-                self.label.set_text(name + '  /  Caps Lock 잠금: ' + ('켜짐' if info['caps_lock'] else '꺼짐'))
+                self.label.set_text(name + '  /  Caps Lock 잠금: ' + ('켜짐' if info['caps_lock'] else '꺼짐')
+                    + '\niPad 보정: ' + {'1': '켜짐', '0': '꺼짐', 'not-installed': '추가 설치 필요'}[info['caps_bridge']])
             except Exception as exc:
                 self.label.set_text(str(exc))
 

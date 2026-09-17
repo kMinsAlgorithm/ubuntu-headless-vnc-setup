@@ -21,3 +21,5 @@
 - 키보드 모드의 사용자 서비스와 기존 자동 해상도 서비스는 별개다. 키보드 모드를 켜면서 adaptive-display-mode.service를 켜지 않는다.
 - x11vnc 제어 요청은 두 도구가 공유하는 vnc-control.lock을 사용한다. 사용자 키 입력 전체를 기록하지 않는다.
 - 실제 Mac/iPad 조합과 Caps Lock 전환은 사용자 확인이 필요하다. 격리된 VNC/IBus 검사 결과와 구분한다.
+
+- iPad RVNC Caps 상태형 전송에는 선택형 caps-bridge 모듈을 사용한다. 먼저 관측·격리 재현을 수행하고 KEYBOARD-MODE.md의 정확한 ABI·백업·배포 절차를 따른다. 기본 매핑 설치와 구분하며 최초 모듈 로드에만 VNC 재시작이 필요하다. GDM/Xorg/IBus는 재시작하지 않는다. 관리자 비밀번호는 사용자 터미널에서만 입력받는다.
