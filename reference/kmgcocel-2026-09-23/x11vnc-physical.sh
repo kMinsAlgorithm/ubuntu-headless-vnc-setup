@@ -53,6 +53,7 @@ exec /usr/bin/x11vnc \
   -shared \
   -norepeat -1 \
   -xkb \
+  -nomodtweak \
   -noxdamage \
   -nodpms \
   -noscr \
@@ -78,5 +79,9 @@ exec /usr/bin/x11vnc \
 #   -repeat      kept X autorepeat on while viewing; a key-up delayed by a big
 #                screen update then auto-repeated on the server (runaway Tab).
 #                -norepeat -1: re-disable even if GNOME turns autorepeat back on.
+# -nomodtweak: modtweak released a held Shift to produce the exact keysym, so
+#   Mac Screen Sharing Cmd+Shift+3 arrived as Ctrl+3 (Mac sends unshifted "3"
+#   while Cmd is down), Korean-input Shift+a gave "a", and terminal
+#   Cmd+Shift+C/V became Ctrl+C/V. Verified on Mac 2026-09-23; iPad unverified.
 # -noxdamage kept: GNOME's compositor can make DAMAGE hints miss updates;
 # with MIT-SHM a full poll of 3440x1440 is cheap.

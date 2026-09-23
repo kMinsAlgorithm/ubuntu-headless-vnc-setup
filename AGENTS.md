@@ -20,7 +20,7 @@
 ## 키보드 모드 작업
 
 - KEYBOARD-MODE.md를 읽고 현재 입력기·클라이언트 입력 언어를 확인한다. Mac 한글 모드에서 낱자를 전송하는 문제를 서버 Caps Lock 재매핑만으로 해결 완료라고 하지 않는다.
-- Mac 화면 공유의 Option은 Meta_L로 도착하며 VNC 모드에서 Super_L로 연결한다. Mac 입력 소스가 한국어면 modtweak 때문에 Shift가 빠진다 (대문자, 터미널 Cmd+Shift+C/V). ABC 입력을 안내하고 `-nomodtweak`을 검증 없이 켜지 않는다.
+- Mac 화면 공유의 Option은 Meta_L로 도착하며 VNC 모드에서 Super_L로 연결한다. x11vnc 기본 modtweak는 Mac에서 Shift를 떼어 버린다 (한국어 입력 대문자, 터미널 Cmd+Shift+C/V, Cmd+Shift+3/4). KMGcocel은 Mac 확인 후 `-nomodtweak`을 적용했다. 다른 PC에서는 클라이언트 배열을 확인하고, iPad 화면 키보드 대문자는 따로 시험한다.
 - Codex CLI는 `keyboard_mode.py status/on/off`다. 개인 원본 설정은 `.local/state/vnc-keyboard-mode`에 저장하며 커밋하지 않는다.
 - 키보드 모드의 사용자 서비스와 기존 자동 해상도 서비스는 별개다. 키보드 모드를 켜면서 adaptive-display-mode.service를 켜지 않는다.
 - x11vnc 제어 요청은 두 도구가 공유하는 vnc-control.lock을 사용한다. 사용자 키 입력 전체를 기록하지 않는다.

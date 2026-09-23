@@ -415,6 +415,7 @@ staging 복사본에서 수정할 항목:
 | `-speeds 6,1500,60` | 로그에 "slow network" 보정이 켜짐 | 빼고 x11vnc가 직접 측정하게 함 |
 | `-fixscreen V=10` | 10초마다 전체 화면(3440×1440 약 20MB)을 다시 보냄 | 뺌 |
 | `-noxdamage` | GNOME 컴포지터에서 DAMAGE 알림이 갱신을 놓칠 수 있다는 x11vnc 경고 | 유지. MIT-SHM이 켜지면 전체 화면을 훑어도 부담이 작음 |
+| (기본) modtweak | Shift를 누른 상태에서 Shift 없는 keysym이 오면 Shift를 뗌. Mac 화면 공유의 Cmd+Shift+3이 Ctrl+3, 한국어 입력 Shift+a가 a, 터미널 Cmd+Shift+C가 Ctrl+C로 도착 | `-nomodtweak` (Mac·Ubuntu 모두 US 배열에서 확인, iPad 미검증). 자세한 내용은 KEYBOARD-MODE.md |
 
 - **IPv6 추가 포트:** 24.04의 x11vnc 0.9.16은 `-rfbport`를 5900이 아닌 값으로 정하면, 그 포트와 별도로 내부 라이브러리가 **`[::]:5900`을 한 번 더 엽니다**. `-no6 -rfbportv6 <포트>`를 쓰면 IPv4·IPv6 모두 한 포트만 엽니다. `-no6`만 쓰면 여전히 5900을 시도합니다.
 - **DISPLAY 번호:** 24.04에서는 자동 로그인 전 세션이 `:1`이었습니다. 고정값 대신, 대상 UID가 소유한 `Xorg` 프로세스의 `-auth` 경로와 같은 UID 소유의 `/tmp/.X11-unix/X*` 소켓을 찾고 `xdpyinfo`로 실제 접속을 확인하는 방식이 재부팅과 재로그인에도 안전합니다. 예시는 [x11vnc-physical.sh](reference/kmgcocel-2026-09-23/x11vnc-physical.sh)에 있습니다.

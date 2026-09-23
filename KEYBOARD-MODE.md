@@ -30,6 +30,8 @@ Ubuntu 터미널(GNOME 터미널, Terminator 기본값)은 원래 복사·붙여
 | Option | Meta_L (x11vnc가 Shift+Alt_L로 만듦) → Super_L | 활동 보기. 방향키와 함께 누르면 창 배치 |
 | Ctrl | Control_L | 정상 |
 | Ctrl+←/→ | Control_L만 | Mac Spaces가 방향키를 가로챔 |
+| Cmd+Shift+3 / 4 | Control_L + Shift_L + 3/4 (`-nomodtweak` 적용 후) | GNOME에 추가한 `<Control><Shift>3` 전체 화면 캡처 / `<Control><Shift>4` 선택 캡처 UI. Mac이 가로채지 않음 |
+| Cmd+Tab | — | macOS 앱 전환이 가로챔. Ubuntu 앱 전환(Super+Tab)은 **Option+Tab** (미검증) |
 
 키 하나씩 바꾸는 x11vnc remap으로는 "Cmd+← → Home" 같은 조합 변환을 할 수 없습니다. Mac처럼 쓰려면 Mac 쪽에서 화면 공유 앱에만 적용되는 키 변환(예: Karabiner-Elements)을 사용합니다.
 
@@ -69,7 +71,16 @@ Mac 입력 소스가 한국어면 Shift+a도 낱자 `ㅁ`으로 전달됩니다.
 - 쌍자음·ㅒ·ㅖ가 있는 Q/W/E/R/T/O/P를 뺀 영문은 **Shift를 눌러도 대문자가 나오지 않습니다**.
 - 터미널의 Cmd+Shift+C/V가 Ctrl+C/V로 도착합니다.
 
-2026-09-23 KMGcocel에서 증상과 원인을 확인했습니다. VNC를 쓸 때는 Mac 입력 소스를 **ABC**로 두고, 한/영은 Ubuntu에서 Caps Lock 또는 Shift+Space로 전환하는 것을 권장합니다. `-nomodtweak`으로 Shift를 유지할 수는 있지만, 키 배열이 다른 클라이언트나 특수 기호 입력에 영향을 줄 수 있어서 검증 없이 적용하지 않습니다.
+2026-09-23 KMGcocel에서 증상과 원인을 확인했습니다. 같은 modtweak 때문에 **Cmd+Shift+3/4도 Ctrl+3/4로 도착**했습니다. Cmd가 눌려 있으면 Mac은 `#`/`$` 대신 Shift가 적용되지 않은 `3`/`4`를 보내고, x11vnc가 그 순간 Shift를 뗐습니다 (수정키와 3·4만 걸러 관찰).
+
+**해결: x11vnc `-nomodtweak`.** 실행 중에는 `x11vnc -R nomodtweak`으로 바로 적용할 수 있습니다. KMGcocel의 Mac 화면 공유(Mac US 배열 ↔ Ubuntu US 배열)에서 사용자가 다음을 확인한 뒤 실행 스크립트에 넣었습니다.
+
+- Cmd+Shift+3/4 스크린샷
+- 한국어 입력 소스에서도 Shift 대문자
+- 터미널 Cmd+Shift+C/V
+- 기호와 한글 입력
+
+x11vnc 도움말에 따르면 `-nomodtweak`은 수정키 상태를 조정하지 않고 키 코드만 입력하므로, 클라이언트와 서버 키보드 배열이 같을 때 적합합니다. **iPad 화면 키보드처럼 Shift 없이 대문자 keysym을 보내는 클라이언트에서는 소문자가 나올 수 있어서 별도로 확인해야 합니다** (미검증). 문제가 생기면 `x11vnc -R modtweak`으로 되돌리고, Mac에서는 ABC 입력 소스를 사용합니다.
 
 ## iPad 화면 키보드에서 특수기호가 나올 때
 
