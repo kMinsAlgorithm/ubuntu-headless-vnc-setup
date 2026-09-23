@@ -33,8 +33,11 @@ JAMO_KEYS = {
 
 def managed_remaps():
     # Both Command keys in the user's macOS Screen Sharing client send Alt_L.
-    # Control remains Control; Option sends a different keysym and is untouched.
-    pairs = [('Caps_Lock', 'Hangul'), ('Alt_L', 'Control_L')]
+    # Option sends Meta_L (observed 2026-09-23 as Shift+Alt_L after x11vnc's
+    # modtweak); map it to Super so Option+Left/Right reaches GNOME tiling.
+    # Control remains Control.
+    pairs = [('Caps_Lock', 'Hangul'), ('Alt_L', 'Control_L'),
+             ('Meta_L', 'Super_L'), ('Meta_R', 'Super_L')]
     for jamo, latin in JAMO_KEYS.items():
         # X11 keysymdef.h: legacy Hangul block is contiguous U+3131..U+3163.
         # iPad RVNC software keyboard also sends bare Unicode code points

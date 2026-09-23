@@ -22,7 +22,7 @@
 
 대상 데스크톱의 일반 사용자로 레포 루트에서 실행합니다. 기존 VNC가 정상 동작하는 PC에 선택기만 추가한다면 [MANUAL.md](MANUAL.md)의 GDM/Xorg 재설치나 서비스 재시작 절차는 필요하지 않습니다.
 
-필수 환경은 단일 활성 출력의 Xorg, xrandr, x11vnc 원격 제어, GTK3/PyGObject와 libwnck3입니다. 현재 검증한 화면 배치는 원점 (0,0), 회전 없음입니다. NVIDIA에서 RandR 화면 축소가 `RRSetScreenSize` 오류로 실패하면 `nvidia-settings`의 MetaMode 전환을 사용합니다. 다른 GPU·Wayland·다중 화면은 검증하지 않았습니다.
+필수 환경은 단일 활성 출력의 Xorg, xrandr, x11vnc 원격 제어, GTK3/PyGObject와 libwnck3입니다. 현재 검증한 화면 배치는 원점 (0,0), 회전 없음입니다. NVIDIA에서 RandR 화면 축소가 `RRSetScreenSize` 오류로 실패하면 `nvidia-settings`의 MetaMode 전환을 사용합니다. NVIDIA가 실제 EDID가 있는 출력에서 `xrandr --addmode ... 1600x1050`을 `BadMatch`로 거부하면(2026-09-23 RTX 5080/595.91.07 관측) 선택기의 iPad 모드를 등록할 수 없습니다. 이 경우 [MANUAL 7.1](MANUAL.md#71-xorg-설정)대로 Xorg 설정에 `AllowNonEdidModes`와 modeline을 넣고 재부팅합니다. 그 전에는 EDID에 있는 Mac 1920×1080만 사용할 수 있습니다. 다른 GPU·Wayland·다중 화면은 검증하지 않았습니다.
 
 ```bash
 /usr/bin/python3 scripts/install-resolution-switcher.py --check

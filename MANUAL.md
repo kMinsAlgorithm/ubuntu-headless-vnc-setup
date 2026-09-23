@@ -260,6 +260,13 @@ UseDisplayDevice DFP-2
 
 기준 파일에는 고해상도 설정과 같은 `DFP-2`를 반복한 `MetaModes` 문자열이 남아 있지만 실제 관측 화면은 1920×1080입니다. 이 문자열을 범용 설정으로 전파하지 말고 대상 드라이버의 초기 로그와 실제 모드 목록을 기준으로 정리합니다. 물리 모니터의 주파수 제한을 일괄 해제해 해결하지 않습니다.
 
+**2026-09-23 KMGcocel 관측(RTX 5080, 595.91.07):** 실제 EDID가 있는 출력에서는 드라이버가 EDID에 없는 모드를 거부했습니다. `xrandr --addmode HDMI-0 1600x1050`이 `BadMatch`로 실패해서, 수동 선택기의 iPad 모드를 쓸 수 없었습니다. 이때는 Xorg 설정에 다음을 넣습니다.
+
+- `Option "ModeValidation" "DFP-N: AllowNonEdidModes"`
+- `Monitor` 절에 iPad modeline 등록
+
+또 모니터 없이 부팅해도 같은 모드 목록이 생기도록, 실제 모니터의 EDID를 `/sys/class/drm/<card>-<output>/edid`에서 복사하고 체크섬을 확인한 뒤 `Option "CustomEDID" "DFP-N:<파일>"`로 고정할 수 있습니다. 이렇게 하면 같은 포트에 다른 모니터를 꽂아도 고정한 EDID를 쓰므로 모니터를 바꾸면 이 줄을 지웁니다. 실제 적용한 파일은 [reference/kmgcocel-2026-09-23](reference/kmgcocel-2026-09-23)에 있습니다. `DFP-N`과 Xrandr 출력의 대응은 `nvidia-settings -q dpys`로 확인합니다.
+
 검토한 파일을 설치하는 예:
 
 ```bash
@@ -399,7 +406,19 @@ staging 복사본에서 수정할 항목:
 
 `-forever`는 클라이언트 종료 후 서버를 유지하고 `-shared`는 동시 공유를 허용합니다. `-input KMBCF`에는 키보드·마우스·클립보드와 지원되는 파일 전송 입력이 포함됩니다. 사용할 기능과 뷰어 호환성을 확인합니다.
 
-`-noxdamage`, `-noshm`, `-wireframe`, `-fixscreen V=10` 등은 기준 PC의 조정값입니다. 모든 장비에서 최적이라고 가정하지 않습니다. `-xrandr resize` 명시를 검토할 수 있으며 크기 변경 때 뷰어 동작은 실제 시험합니다. [Ubuntu x11vnc 옵션](https://manpages.ubuntu.com/manpages/noble/man1/x11vnc.1.html)
+`-noxdamage`, `-noshm`, `-wireframe`, `-fixscreen V=10` 등은 기준 PC의 조정값입니다. 모든 장비에서 최적이라고 가정하지 않습니다. 2026-09-23 KMGcocel(3440×1440, 1Gbps LAN, Mac 화면 공유)에서 확인한 내용은 다음과 같습니다.
+
+| 옵션 | 관측 | 결정 |
+|---|---|---|
+| `-repeat` | 화면 갱신이 키 뗌 신호를 늦추면 서버의 X 자동 반복이 켜져 있어서 Tab이 계속 눌린 것처럼 반복됨. x11vnc 도움말도 이 버그를 피하려고 기본값을 `-norepeat`로 둔다고 설명함 | `-norepeat -1` (GNOME이 자동 반복을 다시 켜도 매번 끔). 실행 중에는 `x11vnc -R norepeat`으로 바로 적용 가능 |
+| `-noshm` | 화면 읽기 426 MB/s. 켜면 2336 MB/s | root로 실행할 때만 필요 (9.3절). 대상 사용자로 실행하면 빼도 됨 |
+| `-speeds 6,1500,60` | 로그에 "slow network" 보정이 켜짐 | 빼고 x11vnc가 직접 측정하게 함 |
+| `-fixscreen V=10` | 10초마다 전체 화면(3440×1440 약 20MB)을 다시 보냄 | 뺌 |
+| `-noxdamage` | GNOME 컴포지터에서 DAMAGE 알림이 갱신을 놓칠 수 있다는 x11vnc 경고 | 유지. MIT-SHM이 켜지면 전체 화면을 훑어도 부담이 작음 |
+
+- **IPv6 추가 포트:** 24.04의 x11vnc 0.9.16은 `-rfbport`를 5900이 아닌 값으로 정하면, 그 포트와 별도로 내부 라이브러리가 **`[::]:5900`을 한 번 더 엽니다**. `-no6 -rfbportv6 <포트>`를 쓰면 IPv4·IPv6 모두 한 포트만 엽니다. `-no6`만 쓰면 여전히 5900을 시도합니다.
+- **DISPLAY 번호:** 24.04에서는 자동 로그인 전 세션이 `:1`이었습니다. 고정값 대신, 대상 UID가 소유한 `Xorg` 프로세스의 `-auth` 경로와 같은 UID 소유의 `/tmp/.X11-unix/X*` 소켓을 찾고 `xdpyinfo`로 실제 접속을 확인하는 방식이 재부팅과 재로그인에도 안전합니다. 예시는 [x11vnc-physical.sh](reference/kmgcocel-2026-09-23/x11vnc-physical.sh)에 있습니다.
+- **비밀번호 파일:** 비밀번호 파일이 없으면 인증 없이 열리지 않도록, 파일이 생길 때까지 기다린 뒤 시작합니다. `-xrandr resize` 명시를 검토할 수 있으며 크기 변경 때 뷰어 동작은 실제 시험합니다. [Ubuntu x11vnc 옵션](https://manpages.ubuntu.com/manpages/noble/man1/x11vnc.1.html)
 
 실행 계정의 `.x11vncrc`가 추가 옵션을 넣을 수 있습니다. 그 파일을 확인하거나 `-norc`로 사용할 옵션을 명확히 합니다. 기준 서비스는 root 실행이므로 설치 스크립트를 일반 사용자가 덮어쓸 수 없게 합니다.
 
@@ -431,6 +450,13 @@ sudo systemd-analyze verify /etc/systemd/system/x11vnc-physical.service
 sudo systemctl daemon-reload
 sudo systemctl enable x11vnc-physical.service
 ```
+
+**Ubuntu 24.04의 GDM 사용자 세션은 Xorg를 대상 사용자 권한으로 실행합니다** (rootless, `gdm-x-session`). 이 상태에서 root x11vnc가 MIT-SHM을 쓰면, Xorg가 root 소유 공유 메모리 접근을 거부합니다 (`X_ShmAttach BadAccess`). 그러면 x11vnc가 켜지자마자 종료되고 `Restart=always`로 재시작을 반복합니다. 해결 방법은 둘 중 하나입니다.
+
+- 서비스에 `User=<대상 사용자>`, `Group=<대상 그룹>`, `Environment=HOME=<대상 홈>`을 지정하고 `-noshm`을 뺍니다. 대상 PC에서는 이 방식을 썼습니다.
+- root 실행을 유지하려면 `-noshm`을 둡니다.
+
+대상 사용자로 실행하면 GDM 로그인 화면(greeter)의 인증 파일은 읽을 수 없습니다. 그래서 원격에서 로그아웃하면 VNC로 다시 로그인할 수 없습니다. 자동 로그인을 전제로 하고, 로그아웃했을 때는 로컬 콘솔이나 관리용 SSH로 복구합니다. `StartLimitIntervalSec=0`을 두면 부팅 초기에 재시도가 제한 횟수에 걸려 멈추지 않습니다.
 
 Bash 구문을 추가했다면 shebang과 검사를 `bash`로 맞춥니다. 기준 PC의 별도 `:1`용 `remote-vnc.service`와 `x11vnc-physical-policy.service`는 비활성입니다. 재현을 위해 추가 활성화하지 않습니다.
 
@@ -576,6 +602,10 @@ VNC 재시작은 원격 연결을 끊고 감지 서비스는 화면을 바꿀 �
 4. 대상 GPU에 맞는 NVIDIA 드라이버를 선택한다.
 5. 기존 GNOME 원격 데스크톱 등의 포트·역할을 기록한다. 충돌이 없으면 이름만 보고 끄지 않는다.
 6. 모니터 없는 부팅, 연결·해제, 잠금, 주 모니터 변경, 외부 접속을 재시험한다.
+7. 사용자 세션의 Xorg가 대상 사용자 소유(rootless)인지 확인하고, x11vnc 실행 계정과 MIT-SHM을 맞춘다 (9.3절).
+8. x11vnc 0.9.16의 IPv6 기본 5900 추가 수신을 `ss -lnt`로 확인한다 (9.2절).
+
+2026-09-23 KMGcocel(24.04.5, RTX 5080)에서 VNC 공유, 55100 포트, kmg 실행, MIT-SHM, 한글 키보드 모드를 현재 세션에서 확인했습니다. 자동 로그인, Wayland 끄기, 모니터 없는 부팅은 재부팅하지 않아서 **미검증**입니다. 기록은 [CHECKLIST-KMGcocel.md](reference/kmgcocel-2026-09-23/CHECKLIST-KMGcocel.md)에 있습니다.
 
 **22.04의 관측 결과를 24.04 검증 결과로 복사하지 않습니다.**
 
@@ -621,6 +651,11 @@ VNC 재시작은 원격 연결을 끊고 감지 서비스는 화면을 바꿀 �
 | 선택한 해상도가 몇 초 후 되돌아감 | 자동 watcher·이를 시작하는 서비스 | 수동 경로는 disabled/inactive 유지; DISPLAY-PROFILES 참고 |
 | iPad 글씨가 흐림·아래 잘림 | VNC scale·실제 해상도·뷰어 배율 | 1600×1050, scale=1, 비율 유지·화면에 맞춤 확인 |
 | 그래픽 앱이 느림 | 렌더러·화면 크기·네트워크 | GPU 가속과 갱신 옵션을 분리해 조사 |
+| LAN인데 화면이 느림 | `-noshm`·`-speeds`·`-fixscreen`, 화면 크기, 뷰어 인코딩 | 9.2절 표. Mac 화면 공유는 x11vnc와 zlib 인코딩만 협상하므로 다른 뷰어나 작은 해상도와 비교 |
+| 키가 계속 눌린 것처럼 반복됨 (Tab 등) | `xset q`의 auto repeat가 접속 중 on인지, 실행 옵션의 `-repeat` | `-norepeat -1`, 실행 중이면 `x11vnc -R norepeat` |
+| 서비스가 몇 초마다 재시작, `X_ShmAttach BadAccess` | x11vnc 실행 계정과 Xorg 소유자 | 9.3절: 대상 사용자로 실행하거나 `-noshm` |
+| 지정하지 않은 `[::]:5900` 수신 | `ss -lnt`, `-rfbport`가 5900이 아닌지 | `-no6 -rfbportv6 <포트>` |
+| `xrandr --addmode`가 `BadMatch` | NVIDIA가 EDID에 없는 모드를 거부 | 7.1절: `AllowNonEdidModes`와 modeline, 재부팅 필요 |
 
 로그는 필요한 범위만 읽습니다.
 

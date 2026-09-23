@@ -13,10 +13,14 @@
 - 암호 파일, Xauthority 내용, 개인키, 접속 IP가 들어간 로그, 사용자 스크린샷은 커밋하지 않는다. 설치 영수증·실행 로그는 사용자의 `.local/state/vnc-resolution-switcher`에 둔다.
 - 변경 검증: `/usr/bin/python3 -m unittest discover -s tests -v`, `/usr/bin/python3 scripts/install-resolution-switcher.py --check`, `git diff --check`. 문서의 명령은 먼저 구문만 확인한다. 활성 화면 변경 시험은 필요할 때만 수행하고 실제 결과와 미실시를 구분한다.
 - 코드·문서·실제 설치본의 차이, 백업 경로, 현재 해상도/scale/서비스 상태를 인계한다. 재부팅 후 마지막 선택 복원을 구현한 것으로 보고하지 않는다. 현재 선택은 X 세션 범위다.
+- x11vnc 옵션은 기준 PC 값을 그대로 옮기지 않는다. `-repeat`는 키 반복 폭주를 일으키므로 `-norepeat`를 쓴다. rootless Xorg(24.04 GDM)에서 root x11vnc가 MIT-SHM을 쓰면 `BadAccess`로 반복 종료되므로, 대상 사용자로 실행하거나 `-noshm`을 둔다. 포트를 5900이 아닌 값으로 바꾸면 `-no6 -rfbportv6 <포트>`로 IPv6 5900 추가 수신을 막는다. 근거는 MANUAL 9.2·9.3에 있다.
+- NVIDIA에서 `xrandr --addmode`가 `BadMatch`면 선택기 iPad 모드는 Xorg `AllowNonEdidModes`와 재부팅이 필요하다 (MANUAL 7.1). 재부팅 전에는 적용 완료로 보고하지 않는다.
+- 두 번째 대상 PC 적용 사본과 기록은 `reference/kmgcocel-2026-09-23`에 있다. 템플릿으로 그대로 복사하지 않는다.
 
 ## 키보드 모드 작업
 
 - KEYBOARD-MODE.md를 읽고 현재 입력기·클라이언트 입력 언어를 확인한다. Mac 한글 모드에서 낱자를 전송하는 문제를 서버 Caps Lock 재매핑만으로 해결 완료라고 하지 않는다.
+- Mac 화면 공유의 Option은 Meta_L로 도착하며 VNC 모드에서 Super_L로 연결한다. Mac 입력 소스가 한국어면 modtweak 때문에 Shift가 빠진다 (대문자, 터미널 Cmd+Shift+C/V). ABC 입력을 안내하고 `-nomodtweak`을 검증 없이 켜지 않는다.
 - Codex CLI는 `keyboard_mode.py status/on/off`다. 개인 원본 설정은 `.local/state/vnc-keyboard-mode`에 저장하며 커밋하지 않는다.
 - 키보드 모드의 사용자 서비스와 기존 자동 해상도 서비스는 별개다. 키보드 모드를 켜면서 adaptive-display-mode.service를 켜지 않는다.
 - x11vnc 제어 요청은 두 도구가 공유하는 vnc-control.lock을 사용한다. 사용자 키 입력 전체를 기록하지 않는다.

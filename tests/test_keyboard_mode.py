@@ -183,7 +183,9 @@ class KeyboardModeTests(unittest.TestCase):
         k.enable_mode(self.backend)
         active = self.backend.vnc()['remap'].split(',')
         self.assertIn('Alt_L-Control_L', active)
-        self.assertIn('Meta_L-Alt_R', active)
+        # Option (Meta_L) is now owned for GNOME Super tiling; restored on disable.
+        self.assertIn('Meta_L-Super_L', active)
+        self.assertNotIn('Meta_L-Alt_R', active)
         self.assertIn('F8-F9', active)
         self.assertNotIn('Alt_L-Super_L', active)
         self.assertNotIn('0xFFE9-Meta_L', active)

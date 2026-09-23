@@ -1,0 +1,18 @@
+[Unit]
+Description=x11vnc physical display sharing (port 55100)
+After=display-manager.service network-online.target
+Wants=display-manager.service network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# Same user as the rootless Xorg, so MIT-SHM attach is permitted.
+User=kmg
+Group=kmg
+Environment=HOME=/home/kmg
+ExecStart=/usr/local/sbin/x11vnc-physical.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

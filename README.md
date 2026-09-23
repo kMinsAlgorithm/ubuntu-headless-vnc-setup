@@ -39,6 +39,7 @@ iPad RVNC에서 복사한 한글이 깨지면 **iPad 복사 보호**를 켭니�
 | [REFERENCE-STATE.md](REFERENCE-STATE.md) | 기준 PC에서 확인한 실제 설정과 한계 |
 | [reference/current-pc](reference/current-pc) | 2026-09-15 시스템 설정 파일 6개의 참고 복사본 |
 | [reference/source-manifest.json](reference/source-manifest.json) | 원본 경로와 SHA-256 지문 |
+| [reference/kmgcocel-2026-09-23](reference/kmgcocel-2026-09-23) | 두 번째 대상 PC(24.04, RTX 5080, 포트 55100)에 실제 설치한 파일과 기록 |
 | [VALIDATION.md](VALIDATION.md) | 문서·도구·실제 화면 검증 범위 |
 | [OPTIONAL-REMOTE-ACCESS.md](OPTIONAL-REMOTE-ACCESS.md) | 사용자가 연결 방식 변경을 선택한 경우에만 보는 SSH·VPN 부록 |
 
@@ -55,6 +56,7 @@ iPad RVNC에서 복사한 한글이 깨지면 **iPad 복사 보호**를 켭니�
 - 최신 상태(2026-09-17): 모니터 없는 단일 Xorg 화면, 자동 로그인·VNC 자동 시작, iPad 수동 모드 1600×1050, scale=1. 자동 화면 감지 서비스는 disabled/inactive.
 - 이전 상태(2026-09-15): 기본 1920×1080, 10초 주기의 자동 감지 서비스. 이 경로는 실물 모니터 자동 전환이 필요한 별도 선택지입니다.
 - 대상 PC에서 검증할 항목: 실제 모니터 연결·해제, 주 모니터 변경, 재부팅 후 접속, Ubuntu 24.04, 다른 GPU.
+- 2026-09-23 두 번째 PC(Ubuntu 24.04.5, RTX 5080): VNC 공유, 키보드 모드, 선택기 설치를 현재 세션에서 확인했습니다. 재부팅이 필요한 자동 로그인, 가상 모니터, iPad 1600×1050은 미검증입니다. x11vnc 실행 계정과 옵션을 바꾼 이유는 MANUAL 9.2·9.3에 있습니다.
 - 첨부 설정은 참고 원본이며 범용 설치 프로그램이 아닙니다. 사용자명·UID·GPU 주소·출력 번호를 검토 없이 복사하지 않습니다.
 - 다중 모니터 자동 선택은 기준 PC의 기존 기능이 아닙니다. MANUAL.md의 구현 규칙과 시험을 충족해야 완료로 기록합니다.
 
