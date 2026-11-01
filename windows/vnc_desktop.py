@@ -55,9 +55,15 @@ def backend():
 def perform_transaction(adapter, request, state, emit, decide, clock=time.monotonic):
     """The guard owns every display mutation and rolls back before releasing its lock."""
     action = request['action']
+    from session_mode import automatic_status
+    automatic = automatic_status(state)
+    if automatic['running'] and action in ('headless', 'restore'):
+        raise RuntimeError('Turn automatic VNC display mode off before changing the output topology manually')
     target = None
     if action != 'restore':
         target = adapter.choose(request.get('display'), virtual=(action == 'headless'))
+        if automatic['running'] and automatic.get('phase') == 'virtual' and not target['virtual']:
+            raise RuntimeError('Automatic VNC mode is using the virtual display; select that display for profile changes')
         width, height = PROFILES[request['profile']]
         if action == 'apply' and target['active'] and (target['width'], target['height']) == (width, height):
             result = {'status': 'unchanged', 'display': target['device']}
@@ -200,19 +206,22 @@ def profiles(adapter=None, device=None):
 def status():
     adapter = backend()
     from keyboard_hook import keyboard_status
+    from session_mode import automatic_status
     return {'displays': adapter.devices(), 'virtual_screen': adapter.virtual_screen(),
             'profiles': profiles(adapter), 'keyboard': keyboard_status(STATE),
-            'recovery_available': (STATE / 'original-display.json').exists()}
+            'recovery_available': (STATE / 'original-display.json').exists(),
+            'automatic_display': automatic_status(STATE)}
 
 
 def gui():
     import tkinter as tk
     from tkinter import messagebox, ttk
     from keyboard_hook import keyboard_status, start_keyboard, stop_keyboard
+    from session_mode import automatic_status, start_automatic, stop_automatic
     root = tk.Tk()
     root.title('VNC 화면 · 키보드')
-    root.geometry('620x470')
-    root.minsize(570, 440)
+    root.geometry('620x650')
+    root.minsize(570, 620)
     frame = ttk.Frame(root, padding=20)
     frame.pack(fill='both', expand=True)
     ttk.Label(frame, text='VNC 화면 선택', font=('Segoe UI', 16, 'bold')).pack(anchor='w')
@@ -303,6 +312,33 @@ def gui():
     ttk.Button(buttons, text='가상 화면만 사용', command=lambda: operate('headless')).pack(side='left', padx=6)
     ttk.Button(buttons, text='처음 화면 복구', command=lambda: operate('restore')).pack(side='left', padx=6)
     ttk.Separator(frame).pack(fill='x', pady=18)
+    ttk.Label(frame, text='VNC 접속 시 화면 자동 전환', font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+    ttk.Label(frame, text='원격 접속 중에는 물리 출력을 끄고 가상 화면 하나만 사용합니다.\n마지막 연결이 끝나면 직전 모니터 배치와 창 위치를 복구합니다.', wraplength=560).pack(anchor='w', pady=8)
+    auto_message = tk.StringVar()
+
+    def automatic(on):
+        try:
+            if on:
+                start_automatic(STATE, profile.get().split(' · ')[0])
+            else:
+                stop_automatic(STATE)
+        except Exception as error:
+            messagebox.showerror('자동 화면 전환', str(error))
+
+    auto_row = ttk.Frame(frame)
+    auto_row.pack(anchor='w')
+    ttk.Button(auto_row, text='자동 전환 켜기', command=lambda: automatic(True)).pack(side='left', padx=(0,8))
+    ttk.Button(auto_row, text='끄기 · 물리 화면 복구', command=lambda: automatic(False)).pack(side='left')
+    ttk.Label(frame, textvariable=auto_message, wraplength=560).pack(anchor='w', pady=5)
+
+    def refresh_automatic():
+        value = automatic_status(STATE)
+        labels = {'virtual': '원격 접속 중 · 가상 화면 하나', 'observing': '인증된 접속 대기',
+                  'restoring': '물리 화면 복구 중', 'restore-pending': '모니터 연결 후 복구 필요', 'error': '오류 · 상태 확인 필요'}
+        auto_message.set(labels.get(value.get('phase'), '꺼짐') if value['running'] else '자동 전환 꺼짐')
+        root.after(1500, refresh_automatic)
+    refresh_automatic()
+    ttk.Separator(frame).pack(fill='x', pady=12)
     ttk.Label(frame, text='VNC 키보드 모드', font=('Segoe UI', 12, 'bold')).pack(anchor='w')
     ttk.Label(frame, text='주입된 Caps Lock → 한/영. 다른 프로그램이 주입한 같은 키도 해당됩니다.\n물리 키 매핑은 유지합니다. 실제 Mac/iPad 한글 조합은 기기에서 확인하세요.', wraplength=560).pack(anchor='w', pady=8)
     command = tk.BooleanVar(value=False)
@@ -331,6 +367,7 @@ def main(argv=None):
     sub.add_parser('status')
     sub.add_parser('gui')
     sub.add_parser('resume-keyboard')
+    sub.add_parser('resume-session')
     sub.add_parser('profiles').add_argument('--display')
     for action in ('apply', 'headless', 'restore'):
         item = sub.add_parser(action)
@@ -340,6 +377,11 @@ def main(argv=None):
         item.add_argument('--keep', action='store_true')
         item.add_argument('--timeout', type=int, default=20, choices=range(2, 121), metavar='2..120')
     sub.add_parser('_guard').add_argument('request', type=Path)
+    sub.add_parser('_session-guard').add_argument('request', type=Path)
+    automatic = sub.add_parser('auto')
+    automatic.add_argument('action', choices=('status', 'on', 'off', 'run'))
+    automatic.add_argument('--profile', choices=PROFILES, default='mac')
+    automatic.add_argument('--port', type=int, default=5900)
     keyboard = sub.add_parser('keyboard')
     keyboard.add_argument('action', choices=('status', 'on', 'off', 'run'))
     keyboard.add_argument('--command-as-control', action='store_true')
@@ -347,6 +389,25 @@ def main(argv=None):
     try:
         if args.command == '_guard':
             return guard(args.request)
+        if args.command == '_session-guard':
+            from session_mode import session_guard
+            return session_guard(args.request)
+        if args.command in ('auto', 'resume-session'):
+            from session_mode import automatic_status, start_automatic, stop_automatic, run_automatic
+            if args.command == 'resume-session':
+                path = STATE / 'session-preference.json'
+                saved = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+                if saved.get('enabled'):
+                    start_automatic(STATE, saved.get('profile', 'mac'), saved.get('port', 5900))
+            elif args.action == 'on':
+                emit(start_automatic(STATE, args.profile, args.port))
+            elif args.action == 'off':
+                emit(stop_automatic(STATE))
+            elif args.action == 'run':
+                return run_automatic(STATE)
+            else:
+                emit(automatic_status(STATE))
+            return 0
         if args.command == 'gui':
             gui()
         elif args.command == 'status':

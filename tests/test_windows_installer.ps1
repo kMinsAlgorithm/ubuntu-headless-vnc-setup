@@ -16,7 +16,7 @@ try {
     & $installer -Action Uninstall -DesktopDirectory $desktop -StartupDirectory $startup | Out-Null
     $restored = [IO.File]::ReadAllBytes($installed)
     if ([Convert]::ToBase64String($original) -ne [Convert]::ToBase64String($restored)) { throw 'Uninstall did not restore the exact previous file.' }
-    foreach ($shortcutFile in @((Join-Path $desktop 'VNC Desktop Tools.lnk'),(Join-Path $startup 'VNC Keyboard Resume.lnk'))) {
+    foreach ($shortcutFile in @((Join-Path $desktop 'VNC Desktop Tools.lnk'),(Join-Path $startup 'VNC Keyboard Resume.lnk'),(Join-Path $startup 'VNC Session Resume.lnk'))) {
         if (-not (Test-Path -LiteralPath $shortcutFile)) { throw 'The previous shortcut was not restored.' }
     }
     Write-Output 'PASS: fresh install, upgrade backup, exact file and shortcut restoration in isolated directories.'
