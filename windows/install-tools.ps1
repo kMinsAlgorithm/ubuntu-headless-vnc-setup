@@ -7,10 +7,16 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $appRoot = Join-Path $env:LOCALAPPDATA 'VncDesktopTools'
-$app = Join-Path $appRoot 'app'
 $python = (Get-Command $PythonPath -ErrorAction Stop).Source
 & $python -c 'import sys, tkinter; assert sys.version_info >= (3, 9), "Python 3.9+ is required"'
 if ($LASTEXITCODE -ne 0) { throw 'Python 3.9+ with tkinter is required.' }
+if ($Action -eq 'Install') { New-Item -ItemType Directory -Path $appRoot -Force | Out-Null }
+# Resolve existing handles through AppData virtualization before giving paths to
+# Task Scheduler, which runs outside the installer application's process tree.
+$encodedRoot = & $python -c "import base64,sys; sys.path.insert(0,sys.argv[1]); from app_paths import physical_path; print(base64.b64encode(str(physical_path(sys.argv[2])).encode('utf-8')).decode('ascii'))" $PSScriptRoot $appRoot
+if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the user installation directory.' }
+$appRoot = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encodedRoot))
+$app = Join-Path $appRoot 'app'
 $pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
 if (-not (Test-Path -LiteralPath $pythonw)) { throw 'pythonw.exe was not found next to the selected Python interpreter.' }
 $desktop = $DesktopDirectory
@@ -18,7 +24,7 @@ $startup = $StartupDirectory
 $guiShortcut = Join-Path $desktop 'VNC Desktop Tools.lnk'
 $startupShortcut = Join-Path $startup 'VNC Keyboard Resume.lnk'
 $sessionShortcut = Join-Path $startup 'VNC Session Resume.lnk'
-$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','ime_bridge.py','session_mode.py','session_observer.py')
+$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','ime_bridge.py','session_mode.py','session_observer.py','app_paths.py','background.py','background-tasks.ps1')
 $targets = @($files | ForEach-Object { Join-Path $app $_ }) + @($guiShortcut,$startupShortcut,$sessionShortcut)
 if ($Action -eq 'Check') {
     [ordered]@{
@@ -30,7 +36,7 @@ if ($Action -eq 'Check') {
 $installedScript = Join-Path $app 'vnc_desktop.py'
 $sourceScript = Join-Path $PSScriptRoot 'vnc_desktop.py'
 $displayPayloadChanged = $false
-foreach ($file in @('vnc_desktop.py','win32_backend.py','session_mode.py','session_observer.py')) {
+foreach ($file in @('vnc_desktop.py','win32_backend.py','session_mode.py','session_observer.py','app_paths.py','background.py','background-tasks.ps1')) {
     $destination = Join-Path $app $file
     if (-not (Test-Path -LiteralPath $destination) -or (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $file) -Algorithm SHA256).Hash) {
         $displayPayloadChanged = $true
@@ -70,6 +76,7 @@ if (Test-Path -LiteralPath $installedScript) {
 $receiptPath = Join-Path $appRoot 'install-receipt.json'
 if ($Action -eq 'Uninstall') {
     $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
+    & (Join-Path $PSScriptRoot 'background-tasks.ps1') -Action Restore -AppDirectory $app -BackupDirectory $receipt.Backup
     foreach ($file in $receipt.Files) {
         if ($file.Destination -notin $targets) { throw 'Receipt contains an unexpected destination.' }
         if ($file.Existed) { Copy-Item -LiteralPath $file.Backup -Destination $file.Destination -Force }
@@ -99,6 +106,7 @@ try {
             Copy-Item -LiteralPath $source -Destination $destination -Force
         }
     }
+    & (Join-Path $PSScriptRoot 'background-tasks.ps1') -Action Install -AppDirectory $app -PythonWindowless $pythonw -BackupDirectory $backup
     $shell = New-Object -ComObject WScript.Shell
     New-Item -ItemType Directory -Path $desktop,$startup -Force | Out-Null
     foreach ($entry in @(@($guiShortcut,'gui'), @($startupShortcut,'resume-keyboard'), @($sessionShortcut,'resume-session'))) {
@@ -114,6 +122,8 @@ try {
     $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $backupReceipt -Encoding UTF8
     Copy-Item -LiteralPath $backupReceipt -Destination $receiptPath -Force
 } catch {
+    try { & (Join-Path $PSScriptRoot 'background-tasks.ps1') -Action Restore -AppDirectory $app -BackupDirectory $backup }
+    catch { Write-Warning 'Scheduled task rollback needs attention; the private task backup was preserved.' }
     foreach ($file in $receipt.Files) {
         if ($file.Existed) { Copy-Item -LiteralPath $file.Backup -Destination $file.Destination -Force }
         elseif (Test-Path -LiteralPath $file.Destination) { Remove-Item -LiteralPath $file.Destination }

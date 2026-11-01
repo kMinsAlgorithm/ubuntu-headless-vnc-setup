@@ -13,7 +13,8 @@ import uuid
 
 PROFILES = {'mac': (1920, 1080), 'ipad': (1600, 1050),
             'ipad-landscape': (1184, 824), 'ipad-large-text': (1024, 768)}
-STATE = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'VncDesktopTools' / 'state'
+from app_paths import user_root
+STATE = user_root() / 'state'
 
 
 def write_json(path, value):
@@ -378,6 +379,7 @@ def main(argv=None):
     sub.add_parser('gui')
     sub.add_parser('resume-keyboard')
     sub.add_parser('resume-session')
+    sub.add_parser('_background').add_argument('kind', choices=('keyboard', 'session'))
     sub.add_parser('profiles').add_argument('--display')
     for action in ('apply', 'headless', 'restore'):
         item = sub.add_parser(action)
@@ -397,6 +399,9 @@ def main(argv=None):
     keyboard.add_argument('--command-as-control', action='store_true')
     args = parser.parse_args(argv)
     try:
+        if args.command == '_background':
+            from background import run_background
+            return run_background(STATE, args.kind)
         if args.command == '_guard':
             return guard(args.request)
         if args.command == '_session-guard':

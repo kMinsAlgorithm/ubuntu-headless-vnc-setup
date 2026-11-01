@@ -55,6 +55,7 @@ def launch(arguments, **streams):
 
 def start_automatic(state, profile='mac', port=5900):
     from vnc_desktop import write_json, operation_lock, PROFILES
+    from background import launch_background
     if os.name != 'nt':
         raise RuntimeError('Automatic VNC display mode requires Windows')
     if profile not in PROFILES or not 1 <= port <= 65535:
@@ -71,14 +72,12 @@ def start_automatic(state, profile='mac', port=5900):
         target = adapter.choose(virtual=True)
         adapter.target_mode(target['device'], *PROFILES[profile])
         write_json(state / 'session-preference.json', {'enabled': True, 'profile': profile, 'port': port})
-        child = launch(['auto', 'run'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        launch_token = launch_background(state, 'session')
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             current = automatic_status(state)
-            if current['running'] and current.get('pid') == child.pid:
+            if current['running'] and current.get('launch_token') == launch_token:
                 return current
-            if child.poll() is not None:
-                raise RuntimeError(current.get('error', 'Automatic display observer did not start'))
             time.sleep(0.05)
         raise RuntimeError('Automatic display observer is still starting; inspect auto status before retrying')
 
@@ -233,13 +232,14 @@ def session_guard(path):
             return 1
 
 
-def run_automatic(state):
+def run_automatic(state, launch_token=None):
     from vnc_desktop import write_json, operation_lock
     from session_observer import WindowsSessionObserver
     preference = state / 'session-preference.json'
     saved = json.loads(preference.read_text(encoding='utf-8'))
     token = uuid.uuid4().hex
-    runtime = {'running': True, 'pid': os.getpid(), 'token': token, 'phase': 'observing'}
+    runtime = {'running': True, 'pid': os.getpid(), 'token': token, 'phase': 'observing',
+               'launch_token': launch_token, 'independent_task': launch_token is not None}
     heartbeat_stop = threading.Event()
     child, events, observer = None, None, None
     last_retry = 0

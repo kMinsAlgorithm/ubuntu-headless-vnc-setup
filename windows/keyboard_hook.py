@@ -55,7 +55,8 @@ def keyboard_status(state):
 
 
 def start_keyboard(state, command_as_control=False):
-    from vnc_desktop import write_json, operation_lock, console_python
+    from vnc_desktop import write_json, operation_lock
+    from background import launch_background
     if os.name != 'nt':
         raise RuntimeError('The keyboard mode requires Windows')
     with operation_lock(state / 'keyboard-launch.lock'):
@@ -64,24 +65,16 @@ def start_keyboard(state, command_as_control=False):
             if current.get('command_as_control') != command_as_control:
                 raise RuntimeError('Turn keyboard mode off before changing the Command mapping')
             return current
-        args = [console_python(), str(Path(__file__).with_name('vnc_desktop.py')), 'keyboard', 'run']
-        if command_as_control:
-            args.append('--command-as-control')
-        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
+        write_json(state / 'keyboard-preference.json',
+                   {'enabled': True, 'command_as_control': command_as_control})
+        launch_token = launch_background(state, 'keyboard')
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
             current = keyboard_status(state)
-            if current['running'] and current.get('pid') == child.pid:
-                write_json(state / 'keyboard-preference.json',
-                           {'enabled': True, 'command_as_control': command_as_control})
+            if current['running'] and current.get('launch_token') == launch_token:
                 return current
-            if child.poll() is not None:
-                raise RuntimeError('Keyboard mode failed to start; use keyboard run in a terminal for diagnostics')
             time.sleep(0.05)
-        child.terminate()  # Only the newly launched worker owned by this call.
-        child.wait(timeout=5)
-        raise RuntimeError('Keyboard mode did not become ready; check the interactive Windows desktop')
+        raise RuntimeError('The independent keyboard task did not become ready; inspect keyboard status before retrying')
 
 
 def stop_keyboard(state):
@@ -101,7 +94,7 @@ def stop_keyboard(state):
         raise RuntimeError('Keyboard mode did not stop; do not remove its files yet')
 
 
-def run_keyboard(state, command_as_control=False):
+def run_keyboard(state, command_as_control=False, launch_token=None):
     from vnc_desktop import write_json, operation_lock
     if os.name != 'nt':
         raise RuntimeError('The keyboard mode requires Windows')
@@ -183,6 +176,7 @@ def run_keyboard(state, command_as_control=False):
             raise C.WinError(C.get_last_error())
         token = uuid.uuid4().hex
         runtime = {'running': True, 'pid': os.getpid(), 'token': token,
+                   'launch_token': launch_token, 'independent_task': launch_token is not None,
                    'command_as_control': command_as_control, 'jamo_normalization': True}
         try:
             message = W.MSG()

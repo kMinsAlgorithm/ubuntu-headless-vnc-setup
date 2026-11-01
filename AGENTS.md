@@ -8,6 +8,7 @@
 - VNC가 정상 동작하면 서버·암호를 보존한다. 새 비밀번호는 사용자 터미널의 숨김 입력으로만 받고 커밋·로그·보고서에 넣지 않는다.
 - 가상 화면은 `setup-vnc.ps1 -Action InstallVirtualDisplay`의 고정 SHA-256·게시자 서명 검사를 사용한다. 테스트 서명·Secure Boot·메모리 무결성·루트 인증서를 바꾸지 않는다.
 - 사용자 도구는 일반 사용자로 `install-tools.ps1 -Action Install`을 사용한다. 상태·백업·설치 영수증은 LOCALAPPDATA/ProgramData에만 두고 커밋하지 않는다.
+- 지속 실행하는 키보드·접속 감시기는 사용자 InteractiveToken 예약 작업으로 시작한다. Codex/터미널의 자식 프로세스를 장기 실행으로 보고하지 않는다. AppData가 가상화된 환경에서는 실제 파일 핸들의 경로를 사용하고, 설치된 모듈은 그 설치 위치의 상태 디렉터리를 사용한다. 사용자 작업 정의의 백업·복구를 보존한다.
 - 화면 전환은 `vnc_desktop.py apply/headless/restore`와 독립 복구 프로세스를 사용한다. 설치만으로 화면을 변경하지 않는다. 현재 다중 출력·회전·창 배치를 조사하고 원복을 확인한다.
 - 접속 중 자동 가상 화면은 `vnc_desktop.py auto on/off/status`를 사용한다. 단순 TCP 접속을 인증 성공으로 취급하지 않는다. native tvnserver 이벤트와 현재 서비스 연결을 관측하며 키 입력 로그를 켜거나 관리 채널의 실행 파일 제한을 우회하지 않는다. 자동 모드의 세션 백업과 별도 복구 프로세스를 보존하고, 수동 토폴로지 전환 전에는 auto off로 복구한다.
 - Windows 키보드 모드는 주입 이벤트 훅이며 VNC 클라이언트 식별 기능이 아니다. 단일 두벌식 자모 33개는 Windows Korean IME로 조합하며 실제 클라이언트 확인과 정책 모의 검사를 구분한다. Cmd 변환은 선택형이다. Ubuntu의 iPad Caps 상태 보정·클립보드 보호를 Windows에서 검증했다고 보고하지 않는다.
