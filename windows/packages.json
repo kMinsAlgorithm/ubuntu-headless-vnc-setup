@@ -1,0 +1,17 @@
+{
+  "tightvnc": {
+    "url": "https://www.tightvnc.com/download/2.8.90/tightvnc-2.8.90-gpl-setup-64bit.msi",
+    "sha256": "9693cb4cdc2e7e482e8e3f5890415b57ef87de3369fa5c337db516218a1170ce",
+    "signer": "GlavSoft"
+  },
+  "virtual_display": {
+    "url": "https://github.com/VirtualDrivers/Virtual-Display-Driver/releases/download/25.7.23/VirtualDisplayDriver-x86.Driver.Only.zip",
+    "sha256": "e24210692b442b39af763536330ce78b423f19342b7a7792c26de3944e418b3a",
+    "signer": "SignPath Foundation"
+  },
+  "nefcon": {
+    "url": "https://github.com/nefarius/nefcon/releases/download/v1.14.0/nefcon_v1.14.0.zip",
+    "sha256": "a15557da24a9efca203158de3b43b0eaf982db231f0194031f1ed428bc13e669",
+    "signer": "Nefarius Software Solutions"
+  }
+}

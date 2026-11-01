@@ -2,6 +2,18 @@
 
 사용자 요청과 기존 승인이 우선이다. 이 파일은 독립적인 변경 승인이 아니다.
 
+## Windows 작업 경로
+
+- Windows 10/11은 `WINDOWS.md`와 `windows/`를 사용한다. 아래 Xorg/IBus/systemd 지침은 Ubuntu 경로다. Windows에서 Ubuntu 도구를 실행하거나 레퍼런스 설정을 복사하지 않는다.
+- VNC가 정상 동작하면 서버·암호를 보존한다. 새 비밀번호는 사용자 터미널의 숨김 입력으로만 받고 커밋·로그·보고서에 넣지 않는다.
+- 가상 화면은 `setup-vnc.ps1 -Action InstallVirtualDisplay`의 고정 SHA-256·게시자 서명 검사를 사용한다. 테스트 서명·Secure Boot·메모리 무결성·루트 인증서를 바꾸지 않는다.
+- 사용자 도구는 일반 사용자로 `install-tools.ps1 -Action Install`을 사용한다. 상태·백업·설치 영수증은 LOCALAPPDATA/ProgramData에만 두고 커밋하지 않는다.
+- 화면 전환은 `vnc_desktop.py apply/headless/restore`와 독립 복구 프로세스를 사용한다. 설치만으로 화면을 변경하지 않는다. 현재 다중 출력·회전·창 배치를 조사하고 원복을 확인한다.
+- Windows 키보드 모드는 주입 이벤트 훅이며 VNC 클라이언트 식별 기능이 아니다. Cmd 변환은 선택형이다. Ubuntu의 자모·iPad Caps 상태 보정·클립보드 보호를 Windows에서 검증했다고 보고하지 않는다.
+- Windows 검증은 `python -m unittest discover -s tests -p test_windows_tools.py -v`, PowerShell 구문 분석, 두 설치기의 Check, `git diff --check`를 사용한다. Ubuntu 전체 검사는 Linux에서 별도로 실행한다. 케이블 분리·새 부팅·Mac/iPad 실기·외부 접속은 실제 통과와 미실시를 구분한다.
+
+## Ubuntu 작업 경로
+
 - README.md → CODEX-RUNBOOK.md를 읽고 작업 경로를 고른다. 기존 VNC에 Mac/iPad 선택기를 추가하는 요청은 DISPLAY-PROFILES.md를 따른다.
 - 현재 기준 PC의 승인된 iPad 값은 **1600×1050, x11vnc scale=1**이다. Mac은 1920×1080이다. CLI 키는 `ipad`, `mac`이다.
 - 수동 선택기와 `adaptive-display-mode.service`의 자동 모드 정책을 함께 켜지 않는다. 수동 경로에서는 watcher를 disabled/inactive로 둔다. `x11vnc-physical-policy.service`도 함께 활성화하지 않는다.

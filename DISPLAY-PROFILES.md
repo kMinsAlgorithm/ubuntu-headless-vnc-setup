@@ -1,5 +1,7 @@
 # Mac / iPad 해상도 선택기
 
+Windows에서는 [WINDOWS.md](WINDOWS.md)의 Windows 전용 선택기를 사용합니다. 아래 xrandr·GTK·x11vnc 절차는 Ubuntu용입니다.
+
 2026-09-17 기준 PC에서 사용자가 확인한 최종 설정입니다. 기존 Xorg/x11vnc 화면에 바탕화면 아이콘을 추가합니다. 같은 서버에 접속한 모든 뷰어에 해상도 변경이 적용됩니다.
 
 | 바탕화면 메뉴 | CLI 키 | 서버 화면 | VNC 배율 |

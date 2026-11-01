@@ -1,5 +1,7 @@
 # Mac / iPad용 VNC 키보드 모드
 
+Windows 구현과 한계는 [WINDOWS.md](WINDOWS.md)의 키보드 절을 사용합니다. 아래 자모·IBus·iPad 보정 검증은 Ubuntu에서 수행한 결과입니다.
+
 바탕화면 **VNC 키보드 모드**에서 **VNC 모드 켜기** 또는 **직접 사용 · 원래 설정**을 선택합니다. 기존 Xorg/x11vnc와 IBus 한글 환경을 위한 도구입니다.
 
 | 기능 | VNC 모드 | 직접 사용 |

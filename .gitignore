@@ -22,3 +22,12 @@ tailscaled.state
 .DS_Store
 __pycache__/
 *.pyc
+
+# Windows per-machine state, credentials, downloaded binaries, and shortcuts
+windows/local/
+*.clixml
+*.msi
+*.exe
+*.dll
+*.cat
+*.lnk

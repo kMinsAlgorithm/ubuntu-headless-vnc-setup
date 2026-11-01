@@ -2,6 +2,19 @@
 
 ## 먼저 작업 경로 선택
 
+- **Windows 10/11**: [WINDOWS.md](WINDOWS.md), `windows/`, [Windows 체크리스트](windows/CHECKLIST.md)를 사용한다. 아래 Ubuntu 프롬프트 대신 다음을 전달한다.
+
+```text
+이 Windows PC에 이 저장소의 Windows용 VNC와 화면 도구를 설치해줘.
+AGENTS.md와 WINDOWS.md를 읽고 OS/아키텍처/GPU/현재 출력 배치/Python/기존 VNC를 먼저 조사해.
+정상 VNC·암호·실행 프로그램을 보존하고 일반 사용자 도구와 관리자 드라이버 설치를 구분해.
+모니터 없는 사용이 요청됐으면 서명된 가상 디스플레이와 4개 Mac/iPad 모드를 설치해.
+설치 영수증과 화면 배치 백업은 로컬에 보관하고 저장소에는 비밀값을 넣지 마.
+화면 변경은 독립 복구 프로세스가 준비된 CLI/GUI로 시험하고 원래 화면 배치를 복구해.
+직접 VNC 접속을 유지하며 공유기 설정은 기존 승인 범위만 처리해.
+회귀 검사·실제 화면 변경·실제 케이블 분리·재부팅·Mac/iPad 입력 확인을 구분해서 기록해.
+```
+
 - **기존 VNC에서 Mac/iPad 해상도를 선택**: 아래 프롬프트와 [DISPLAY-PROFILES.md](DISPLAY-PROFILES.md)를 사용한다. 현재 기준 PC의 경로다.
 - **새 PC에 헤드리스 VNC·실물 모니터 자동 전환을 구축**: 1절의 기존 설치 프롬프트와 MANUAL을 사용한다. 수동 선택기와 자동 watcher를 동시에 활성화하지 않는다.
 
