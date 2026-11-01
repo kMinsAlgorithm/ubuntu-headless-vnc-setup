@@ -180,5 +180,42 @@ class EventRecordTests(unittest.TestCase):
             observer.event_messages(self.record('tvnserver', 'test')[:-8])
 
 
+class StaleHeartbeatTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.state = Path(temporary.name)
+        app.write_json(self.state / 'session-runtime.json',
+                       {'running': True, 'pid': 0, 'token': 'owned-worker', 'heartbeat': 0})
+
+    def test_stale_heartbeat_does_not_hide_live_worker_lock(self):
+        with app.operation_lock(self.state / 'session-worker.lock'):
+            status = session.automatic_status(self.state)
+            self.assertFalse(status['running'])
+            self.assertTrue(status['worker_active'])
+        self.assertFalse(session.automatic_status(self.state)['worker_active'])
+
+    def test_stop_signals_stale_worker_and_waits_before_recovery(self):
+        app.write_json(self.state / 'session-recovery.json', {'snapshot': {'screen': 'original'}})
+        with patch.object(session, 'worker_active', side_effect=[True, True, False, False]) as active, patch.object(session.time, 'sleep'), patch.object(session, 'launch_guard') as guard, patch.object(session, 'finish_guard', return_value={'status': 'restored'}):
+            def recovery(*args, **kwargs):
+                self.assertEqual(active.call_count, 3)
+                return object(), object()
+            guard.side_effect = recovery
+            session.stop_automatic(self.state)
+        stop = json.loads((self.state / 'session-stop.json').read_text())
+        self.assertEqual(stop['token'], 'owned-worker')
+        self.assertFalse(json.loads((self.state / 'session-preference.json').read_text())['enabled'])
+
+    def test_stop_timeout_never_starts_competing_recovery(self):
+        checkpoint = self.state / 'session-recovery.json'
+        app.write_json(checkpoint, {'snapshot': {'screen': 'original'}})
+        with patch.object(session, 'worker_active', return_value=True), patch.object(session.time, 'monotonic', side_effect=[0, 0, 26]), patch.object(session.time, 'sleep'), patch.object(session, 'launch_guard') as guard:
+            with self.assertRaisesRegex(RuntimeError, 'still restoring'):
+                session.stop_automatic(self.state)
+            guard.assert_not_called()
+        self.assertTrue(checkpoint.exists())
+
+
 if __name__ == '__main__':
     unittest.main()

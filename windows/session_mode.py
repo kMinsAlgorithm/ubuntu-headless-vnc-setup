@@ -21,6 +21,18 @@ class SessionPolicy:
         return self.last_active is not None and now - self.last_active < self.grace
 
 
+def worker_active(state):
+    """The process owns this lock even if its status heartbeat has failed."""
+    from vnc_desktop import operation_lock
+    if not (state / 'session-worker.lock').exists():
+        return False
+    try:
+        with operation_lock(state / 'session-worker.lock'):
+            return False
+    except RuntimeError:
+        return True
+
+
 def automatic_status(state):
     preference = state / 'session-preference.json'
     runtime = state / 'session-runtime.json'
@@ -30,7 +42,8 @@ def automatic_status(state):
         current['running'] = bool(current.get('running')) and time.time() - current['heartbeat'] < 6
     except (OSError, ValueError, KeyError):
         current = {'running': False, 'phase': 'off'}
-    return {**current, 'enabled': bool(saved.get('enabled')), 'profile': saved.get('profile', 'mac'),
+    return {**current, 'worker_active': worker_active(state),
+            'enabled': bool(saved.get('enabled')), 'profile': saved.get('profile', 'mac'),
             'recovery_pending': (state / 'session-recovery.json').exists()}
 
 
@@ -50,6 +63,8 @@ def start_automatic(state, profile='mac', port=5900):
         current = automatic_status(state)
         if current['running']:
             return current
+        if current['worker_active']:
+            raise RuntimeError('The automatic observer owns its lock but its heartbeat is stale; use auto off before restarting')
         # Validate the actual driver mode before installing a background policy.
         from win32_backend import WindowsBackend
         adapter = WindowsBackend()
@@ -75,12 +90,13 @@ def stop_automatic(state):
         preference = state / 'session-preference.json'
         saved = json.loads(preference.read_text(encoding='utf-8')) if preference.exists() else {}
         write_json(preference, {**saved, 'enabled': False})
-        if current['running']:
+        if current['running'] or current['worker_active']:
+            if not current.get('token'):
+                raise RuntimeError('The automatic observer is starting; retry auto off after its status is available')
             write_json(state / 'session-stop.json', {'token': current['token']})
             deadline = time.monotonic() + 25
             while time.monotonic() < deadline:
-                current = automatic_status(state)
-                if not current['running']:
+                if not worker_active(state):
                     break
                 time.sleep(0.1)
             else:
@@ -231,7 +247,12 @@ def run_automatic(state):
 
     def heartbeat():
         while not heartbeat_stop.is_set():
-            write_json(state / 'session-runtime.json', {**runtime, 'heartbeat': time.time()})
+            try:
+                write_json(state / 'session-runtime.json', {**runtime, 'heartbeat': time.time()})
+            except OSError:
+                # A longer sharing violation must not permanently kill this
+                # thread while the display supervisor continues to run.
+                pass
             heartbeat_stop.wait(1)
 
     with operation_lock(state / 'session-worker.lock'):

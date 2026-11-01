@@ -21,7 +21,16 @@ def write_json(path, value):
     temporary = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
     try:
         temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-        os.replace(str(temporary), str(path))
+        # Windows readers can briefly deny replacement while opening a status
+        # file. Keep the old complete value until the atomic replace succeeds.
+        for attempt in range(11):
+            try:
+                os.replace(str(temporary), str(path))
+                break
+            except PermissionError:
+                if attempt == 10:
+                    raise
+                time.sleep(0.05)
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -57,12 +66,13 @@ def perform_transaction(adapter, request, state, emit, decide, clock=time.monoto
     action = request['action']
     from session_mode import automatic_status
     automatic = automatic_status(state)
-    if automatic['running'] and action in ('headless', 'restore'):
+    automatic_active = automatic['running'] or automatic.get('worker_active', False)
+    if automatic_active and action in ('headless', 'restore'):
         raise RuntimeError('Turn automatic VNC display mode off before changing the output topology manually')
     target = None
     if action != 'restore':
         target = adapter.choose(request.get('display'), virtual=(action == 'headless'))
-        if automatic['running'] and automatic.get('phase') == 'virtual' and not target['virtual']:
+        if automatic_active and automatic.get('phase') == 'virtual' and not target['virtual']:
             raise RuntimeError('Automatic VNC mode is using the virtual display; select that display for profile changes')
         width, height = PROFILES[request['profile']]
         if action == 'apply' and target['active'] and (target['width'], target['height']) == (width, height):

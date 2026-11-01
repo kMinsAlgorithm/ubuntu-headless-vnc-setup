@@ -135,6 +135,9 @@ def run_keyboard(state, command_as_control=False):
     kernel.GetModuleHandleW.argtypes = [C.c_wchar_p]
     kernel.GetModuleHandleW.restype = C.c_void_p
     mapper = KeyboardMapper(command_as_control)
+    from ime_bridge import JamoMapper, ForegroundIme
+    jamo = JamoMapper()
+    ime = ForegroundIme()
 
     def send(vk, up):
         value = Input()
@@ -142,10 +145,34 @@ def run_keyboard(state, command_as_control=False):
         value.value.keyboard = KeyInput(vk, 0, 2 if up else 0, 0, MARKER)
         return api.SendInput(1, C.byref(value), C.sizeof(Input)) == 1
 
+    def tap(vk, shifted):
+        temporary_shift = shifted and not bool(ime.api.GetAsyncKeyState(0x10) & 0x8000)
+        keys = []
+        if temporary_shift:
+            keys.append((0xA0, False))
+        keys.extend(((vk, False), (vk, True)))
+        if temporary_shift:
+            keys.append((0xA0, True))
+        inputs = (Input * len(keys))()
+        for index, (key, up) in enumerate(keys):
+            inputs[index].kind = 1
+            inputs[index].value.keyboard = KeyInput(key, 0, 2 if up else 0, 0, MARKER)
+        count = api.SendInput(len(inputs), inputs, C.sizeof(Input))
+        if count != len(inputs) and count:
+            send(vk, True)
+            if temporary_shift:
+                send(0xA0, True)
+        return count == len(inputs)
+
     @callback_type
     def callback(code, message, address):
         if code >= 0:
             event = C.cast(address, C.POINTER(KeyEvent)).contents
+            if event.extra != MARKER and event.vk in (0x14, 0x15):
+                ime.invalidate()
+            if jamo.handle(event.vk, event.scan, event.flags, event.extra,
+                           ime.set_native, tap, ime.shortcut_pressed()):
+                return 1
             if mapper.handle(event.vk, event.flags, event.extra, send):
                 return 1
         return api.CallNextHookEx(None, code, message, address)
@@ -156,7 +183,7 @@ def run_keyboard(state, command_as_control=False):
             raise C.WinError(C.get_last_error())
         token = uuid.uuid4().hex
         runtime = {'running': True, 'pid': os.getpid(), 'token': token,
-                   'command_as_control': command_as_control}
+                   'command_as_control': command_as_control, 'jamo_normalization': True}
         try:
             message = W.MSG()
             next_heartbeat = 0

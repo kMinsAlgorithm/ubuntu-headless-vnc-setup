@@ -18,7 +18,7 @@ $startup = $StartupDirectory
 $guiShortcut = Join-Path $desktop 'VNC Desktop Tools.lnk'
 $startupShortcut = Join-Path $startup 'VNC Keyboard Resume.lnk'
 $sessionShortcut = Join-Path $startup 'VNC Session Resume.lnk'
-$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','session_mode.py','session_observer.py')
+$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','ime_bridge.py','session_mode.py','session_observer.py')
 $targets = @($files | ForEach-Object { Join-Path $app $_ }) + @($guiShortcut,$startupShortcut,$sessionShortcut)
 if ($Action -eq 'Check') {
     [ordered]@{
@@ -28,20 +28,30 @@ if ($Action -eq 'Check') {
     return
 }
 $installedScript = Join-Path $app 'vnc_desktop.py'
+$sourceScript = Join-Path $PSScriptRoot 'vnc_desktop.py'
+$displayPayloadChanged = $false
+foreach ($file in @('vnc_desktop.py','win32_backend.py','session_mode.py','session_observer.py')) {
+    $destination = Join-Path $app $file
+    if (-not (Test-Path -LiteralPath $destination) -or (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $file) -Algorithm SHA256).Hash) {
+        $displayPayloadChanged = $true
+    }
+}
 $automaticWasRunning = $false
+$automaticNeedsResume = $false
 $automaticProfile = 'mac'
 if (Test-Path -LiteralPath (Join-Path $app 'session_mode.py')) {
-    $automaticState = (& $python $installedScript auto status | ConvertFrom-Json)
+    $automaticState = (& $python $sourceScript auto status | ConvertFrom-Json)
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect automatic display mode.' }
-    $automaticWasRunning = $automaticState.running
+    $automaticWasRunning = $automaticState.running -or $automaticState.worker_active
     $automaticProfile = $automaticState.profile
-    if ($automaticWasRunning -or $Action -eq 'Uninstall') {
-        & $python $installedScript auto off | Out-Null
+    if (($automaticWasRunning -and $displayPayloadChanged) -or $Action -eq 'Uninstall') {
+        & $python $sourceScript auto off | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Restore the automatic display session before changing installed files.' }
+        $automaticNeedsResume = $automaticWasRunning
     }
 }
 $operationLock = Join-Path $appRoot 'state\display-operation.lock'
-if (Test-Path -LiteralPath $operationLock) {
+if ($displayPayloadChanged -and (Test-Path -LiteralPath $operationLock)) {
     $lockCheck = [IO.File]::Open($operationLock, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     $lockCheck.Dispose()
 }
@@ -82,7 +92,13 @@ $backupReceipt = Join-Path $backup 'receipt.json'
 $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $backupReceipt -Encoding UTF8
 try {
     New-Item -ItemType Directory -Path $app -Force | Out-Null
-    foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $app $file) -Force }
+    foreach ($file in $files) {
+        $destination = Join-Path $app $file
+        $source = Join-Path $PSScriptRoot $file
+        if (-not (Test-Path -LiteralPath $destination) -or (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash) {
+            Copy-Item -LiteralPath $source -Destination $destination -Force
+        }
+    }
     $shell = New-Object -ComObject WScript.Shell
     New-Item -ItemType Directory -Path $desktop,$startup -Force | Out-Null
     foreach ($entry in @(@($guiShortcut,'gui'), @($startupShortcut,'resume-keyboard'), @($sessionShortcut,'resume-session'))) {
@@ -104,7 +120,7 @@ try {
     }
     throw
 } finally {
-    if ($automaticWasRunning) {
+    if ($automaticNeedsResume) {
         & $python $installedScript auto on --profile $automaticProfile | Out-Null
         if ($LASTEXITCODE -ne 0) { Write-Warning 'Files were installed/restored but automatic display mode needs attention.' }
     }
