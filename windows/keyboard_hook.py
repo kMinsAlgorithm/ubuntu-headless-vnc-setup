@@ -128,6 +128,8 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
     kernel.GetModuleHandleW.argtypes = [C.c_wchar_p]
     kernel.GetModuleHandleW.restype = C.c_void_p
     mapper = KeyboardMapper(command_as_control)
+    from capture_keys import CaptureKeys
+    captures = CaptureKeys(enabled=command_as_control)
     from ime_bridge import JamoMapper, ForegroundIme, is_plain_remote_space
     jamo = JamoMapper()
     ime = ForegroundIme()
@@ -161,6 +163,8 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
     def callback(code, message, address):
         if code >= 0:
             event = C.cast(address, C.POINTER(KeyEvent)).contents
+            if captures.handle(event.vk, event.flags, event.extra):
+                return 1
             if event.extra != MARKER and event.vk in (0x14, 0x15):
                 ime.invalidate()
             shortcut = ime.shortcut_pressed()
@@ -180,7 +184,9 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
         token = uuid.uuid4().hex
         runtime = {'running': True, 'pid': os.getpid(), 'token': token,
                    'launch_token': launch_token, 'independent_task': launch_token is not None,
-                   'command_as_control': command_as_control, 'jamo_normalization': True, 'half_width_spaces': True}
+                   'command_as_control': command_as_control, 'jamo_normalization': True, 'half_width_spaces': True,
+                   'capture_shortcuts': bool(command_as_control), 'capture_output': 'clipboard'}
+        capture_process = None
         try:
             message = W.MSG()
             next_heartbeat = 0
@@ -190,6 +196,24 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
                         return 0
                     api.TranslateMessage(C.byref(message))
                     api.DispatchMessageW(C.byref(message))
+                capture_mode = captures.take()
+                if capture_mode and (capture_process is None or capture_process.poll() is not None):
+                    powershell = Path(os.environ['SystemRoot']) / 'System32' / 'WindowsPowerShell' / 'v1.0' / 'powershell.exe'
+                    try:
+                        capture_process = subprocess.Popen(
+                            [str(powershell), '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass',
+                             '-File', str(Path(__file__).with_name('capture-clipboard.ps1')), '-Mode', capture_mode],
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            creationflags=subprocess.CREATE_NO_WINDOW)
+                        runtime.pop('capture_error', None)
+                        runtime['capture_requests'] = runtime.get('capture_requests', 0) + 1
+                        runtime['last_capture_mode'] = capture_mode
+                    except OSError:
+                        runtime['capture_error'] = 'The clipboard capture helper could not start'
+                if capture_process is not None and capture_process.poll() is not None:
+                    if capture_process.returncode:
+                        runtime['capture_error'] = 'Clipboard capture did not complete; check the interactive desktop'
+                    capture_process = None
                 if time.monotonic() >= next_heartbeat:
                     write_json(state / 'keyboard-runtime.json', {**runtime, 'heartbeat': time.time()})
                     next_heartbeat = time.monotonic() + 1
@@ -202,6 +226,12 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
                         pass
                 time.sleep(0.02)
         finally:
+            if capture_process is not None and capture_process.poll() is None:
+                try:
+                    capture_process.terminate()  # Only this worker's active selection helper.
+                    capture_process.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired):
+                    runtime['capture_error'] = 'The capture selection helper is still exiting'
             mapper.release(send)
             api.UnhookWindowsHookEx(hook)
             write_json(state / 'keyboard-runtime.json', {**runtime, 'running': False, 'heartbeat': time.time()})

@@ -24,7 +24,7 @@ $startup = $StartupDirectory
 $guiShortcut = Join-Path $desktop 'VNC Desktop Tools.lnk'
 $startupShortcut = Join-Path $startup 'VNC Keyboard Resume.lnk'
 $sessionShortcut = Join-Path $startup 'VNC Session Resume.lnk'
-$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','ime_bridge.py','session_mode.py','session_observer.py','app_paths.py','background.py','background-tasks.ps1')
+$files = @('vnc_desktop.py','win32_backend.py','keyboard_hook.py','ime_bridge.py','session_mode.py','session_observer.py','app_paths.py','background.py','background-tasks.ps1','capture_keys.py','capture-clipboard.ps1')
 $targets = @($files | ForEach-Object { Join-Path $app $_ }) + @($guiShortcut,$startupShortcut,$sessionShortcut)
 if ($Action -eq 'Check') {
     [ordered]@{

@@ -139,6 +139,18 @@ VNC 서버를 바꾸거나 재시작하지 않습니다. 클라이언트 신원�
 
 로그인 시 예약 작업은 이전에 켜 둔 키보드 모드만 다시 시작합니다. 기존 Startup 재개 바로가기도 보존하며 중복 실행은 막습니다. `keyboard off`를 실행하면 다음 로그인에서도 꺼진 상태를 유지합니다. Windows의 자모 보정은 위 범위의 별도 구현이며, Ubuntu의 iPad RVNC 잠금 상태 보정 모듈·클립보드 보호는 포함하지 않습니다.
 
+### Mac에서 원격 Windows 화면 캡처
+
+Mac 프로필(`keyboard on --command-as-control`)에는 다음 VNC 단축키도 포함됩니다. 캡처는 **Windows 클립보드에만** 복사하며 이미지 파일은 만들지 않습니다. Windows 앱에서 ⌘V로 붙여넣습니다.
+
+| 단축키 | 동작 |
+|---|---|
+| Control+Shift+3 | 현재 Windows 전체 바탕화면 캡처 |
+| Control+Shift+4 | 마우스로 드래그한 영역 캡처 |
+| Esc / 마우스 오른쪽 버튼 | 영역 캡처 취소, 기존 클립보드 유지 |
+
+기본 Mac의 ⌘⇧3/4는 Mac 자체가 먼저 처리하므로 그대로 유지합니다. Windows로 전달된 주입 이벤트만 보정하며, 물리 Windows 키보드·기존 ⌘C/V·AltGr/Win 조합·일반 숫자는 바꾸지 않습니다. 숫자 키의 반복 누름으로 여러 캡처를 만들지 않고, 조합 키를 뗀 뒤 캡처를 시작합니다. 캡처 도우미는 사용자 데스크톱에서 실행하고 키보드 모드를 끄면 열려 있던 영역 선택도 종료합니다.
+
 ## 복구·제거
 
 물리 모니터를 다시 연결한 상태에서 `python $tool restore --keep`, `python $tool keyboard off`를 먼저 실행합니다. 화면이 보이지 않으면 Windows **Win+P** 또는 로컬 디스플레이 설정을 사용합니다. 최초 배치와 직전 변경 백업은 `%LOCALAPPDATA%\VncDesktopTools\state`에 있습니다.
