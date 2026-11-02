@@ -6,6 +6,7 @@ import ctypes as C
 import os
 
 MARKER = 0x564E4354
+FULLSHAPE = 0x0008
 JAMO_KEYS = {
     'ㄱ': 'r', 'ㄲ': 'R', 'ㄴ': 's', 'ㄷ': 'e', 'ㄸ': 'E', 'ㄹ': 'f',
     'ㅁ': 'a', 'ㅂ': 'q', 'ㅃ': 'Q', 'ㅅ': 't', 'ㅆ': 'T', 'ㅇ': 'd',
@@ -14,6 +15,11 @@ JAMO_KEYS = {
     'ㅕ': 'u', 'ㅖ': 'P', 'ㅗ': 'h', 'ㅛ': 'y', 'ㅜ': 'n', 'ㅠ': 'b',
     'ㅡ': 'm', 'ㅣ': 'l',
 }
+
+
+def is_plain_remote_space(vk, scan, flags, extra, shortcut=False):
+    return (bool(flags & 0x10) and not flags & 0x80 and extra != MARKER and not shortcut
+            and (vk == 0x20 or vk == 0xE7 and scan == 0x20))
 
 
 class JamoMapper:
@@ -96,41 +102,68 @@ class ForegroundIme:
             return None
         return result.value
 
-    def set_native(self, enabled):
+    def foreground(self):
         foreground = self.api.GetForegroundWindow()
         if not foreground:
-            return False
+            return None
         thread = self.api.GetWindowThreadProcessId(foreground, None)
         layout = self.api.GetKeyboardLayout(thread) or 0
         if layout & 0xFFFF != 0x412:
             self.invalidate()
-            return False  # Never replace an unrelated user's keyboard language.
+            return None  # Never replace an unrelated user's keyboard language.
         info = GuiThreadInfo()
         info.size = C.sizeof(info)
         focus = foreground
         if self.api.GetGUIThreadInfo(thread, C.byref(info)) and info.focus:
             focus = info.focus
-        identity = (focus, layout, bool(enabled))
-        if self.cache == identity:
-            return True
         window = self.imm.ImmGetDefaultIMEWnd(focus)
         if not window:
+            return None
+        return focus, layout, window
+
+    def ensure_half_width(self):
+        target = self.foreground()
+        if not target:
             return False
+        mode = self.command(target[2], 1)
+        if mode is None:
+            return False
+        if not mode & FULLSHAPE:
+            return True
+        self.invalidate()
+        # Preserve Hangul/English and every other conversion flag. The
+        # original space event still goes through exactly once.
+        if self.command(target[2], 2, mode & ~FULLSHAPE) is None:
+            return False
+        actual = self.command(target[2], 1)
+        return actual is not None and not actual & FULLSHAPE
+
+    def set_native(self, enabled):
+        target = self.foreground()
+        if not target:
+            return False
+        focus, layout, window = target
+        identity = (focus, layout, bool(enabled))
         mode = self.command(window, 1)  # IMC_GETCONVERSIONMODE
         if mode is None:
             return False
+        # A user or another client can change character width without moving
+        # focus. Recheck it even when this input field was previously cached.
+        if (self.cache == identity and not mode & FULLSHAPE and bool(mode & 1) == bool(enabled)
+                and self.command(window, 5) == int(bool(enabled))):
+            return True
         if enabled:
             if self.command(window, 6, 1) is None:  # IMC_SETOPENSTATUS
                 return False
-            desired = mode | 1
+            desired = (mode & ~FULLSHAPE) | 1
         else:
-            desired = mode & ~1
+            desired = mode & ~(1 | FULLSHAPE)
         if self.command(window, 2, desired) is None:  # IMC_SETCONVERSIONMODE
             return False
         if not enabled and self.command(window, 6, 0) is None:
             return False
         actual = self.command(window, 1)
-        if actual is None or bool(actual & 1) != bool(enabled):
+        if actual is None or actual & FULLSHAPE or bool(actual & 1) != bool(enabled):
             return False
         self.cache = identity
         return True

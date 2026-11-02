@@ -128,7 +128,7 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
     kernel.GetModuleHandleW.argtypes = [C.c_wchar_p]
     kernel.GetModuleHandleW.restype = C.c_void_p
     mapper = KeyboardMapper(command_as_control)
-    from ime_bridge import JamoMapper, ForegroundIme
+    from ime_bridge import JamoMapper, ForegroundIme, is_plain_remote_space
     jamo = JamoMapper()
     ime = ForegroundIme()
 
@@ -163,8 +163,11 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
             event = C.cast(address, C.POINTER(KeyEvent)).contents
             if event.extra != MARKER and event.vk in (0x14, 0x15):
                 ime.invalidate()
+            shortcut = ime.shortcut_pressed()
+            if is_plain_remote_space(event.vk, event.scan, event.flags, event.extra, shortcut):
+                ime.ensure_half_width()
             if jamo.handle(event.vk, event.scan, event.flags, event.extra,
-                           ime.set_native, tap, ime.shortcut_pressed()):
+                           ime.set_native, tap, shortcut):
                 return 1
             if mapper.handle(event.vk, event.flags, event.extra, send):
                 return 1
@@ -177,7 +180,7 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
         token = uuid.uuid4().hex
         runtime = {'running': True, 'pid': os.getpid(), 'token': token,
                    'launch_token': launch_token, 'independent_task': launch_token is not None,
-                   'command_as_control': command_as_control, 'jamo_normalization': True}
+                   'command_as_control': command_as_control, 'jamo_normalization': True, 'half_width_spaces': True}
         try:
             message = W.MSG()
             next_heartbeat = 0

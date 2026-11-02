@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'windows'))
-from ime_bridge import JamoMapper, JAMO_KEYS, MARKER
+from ime_bridge import JamoMapper, JAMO_KEYS, MARKER, ForegroundIme, is_plain_remote_space
 
 
 class JamoTests(unittest.TestCase):
@@ -84,6 +84,75 @@ class JamoTests(unittest.TestCase):
     def test_only_the_approved_single_jamo_are_mapped(self):
         self.assertEqual(len(JAMO_KEYS), 33)
         self.assertTrue(all(len(value)==1 and value.isascii() and value.isalpha() for value in JAMO_KEYS.values()))
+
+
+class FakeIme(ForegroundIme):
+    def __init__(self, mode=9):
+        self.mode, self.opened, self.cache, self.calls = mode, 1, None, []
+
+    def foreground(self):
+        return 10, 0x4120412, 11
+
+    def command(self, window, command, value=0):
+        self.calls.append((command, value))
+        if command == 1:
+            return self.mode
+        if command == 5:
+            return self.opened
+        if command == 2:
+            self.mode = value
+        if command == 6:
+            self.opened = value
+        return 0
+
+
+class WidthTests(unittest.TestCase):
+    def test_hangul_selection_clears_full_width_without_changing_other_modes(self):
+        ime = FakeIme(mode=8 | 0x40)
+        self.assertTrue(ime.set_native(True))
+        self.assertEqual(ime.mode, 1 | 0x40)
+
+    def test_english_selection_also_clears_full_width(self):
+        ime = FakeIme()
+        self.assertTrue(ime.set_native(False))
+        self.assertEqual(ime.mode, 0)
+        self.assertEqual(ime.opened, 0)
+
+    def test_same_field_cache_does_not_hide_an_external_width_change(self):
+        ime = FakeIme()
+        self.assertTrue(ime.set_native(True))
+        ime.mode |= 8
+        self.assertTrue(ime.set_native(True))
+        self.assertEqual(ime.mode, 1)
+
+    def test_space_preserves_native_language_and_other_conversion_flags(self):
+        ime = FakeIme(mode=1 | 8 | 0x40)
+        self.assertTrue(ime.ensure_half_width())
+        self.assertEqual(ime.mode, 1 | 0x40)
+        self.assertFalse(any(command == 6 for command, value in ime.calls))
+
+    def test_already_normal_space_does_not_reset_the_input_context(self):
+        ime = FakeIme(mode=1)
+        self.assertTrue(ime.ensure_half_width())
+        self.assertEqual(ime.calls, [(1, 0)])
+
+    def test_blocked_ime_width_change_reports_failure(self):
+        ime = FakeIme()
+        original = ime.command
+        ime.command = lambda window, command, value=0: None if command == 2 else original(window, command, value)
+        self.assertFalse(ime.ensure_half_width())
+        self.assertEqual(ime.mode, 9)
+
+    def test_only_injected_plain_space_down_requests_width_correction(self):
+        self.assertTrue(is_plain_remote_space(0x20, 0, 0x10, 0))
+        self.assertTrue(is_plain_remote_space(0xE7, 0x20, 0x10, 0))
+        self.assertFalse(is_plain_remote_space(0x20, 0, 0, 0))
+        self.assertFalse(is_plain_remote_space(0x20, 0, 0x90, 0))
+        self.assertFalse(is_plain_remote_space(0x20, 0, 0x10, MARKER))
+        self.assertFalse(is_plain_remote_space(0x20, 0, 0x10, 0, shortcut=True))
+
+    def test_explicit_unicode_full_width_space_is_preserved(self):
+        self.assertFalse(is_plain_remote_space(0xE7, 0x3000, 0x10, 0))
 
 
 if __name__ == '__main__':
