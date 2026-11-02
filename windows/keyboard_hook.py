@@ -185,7 +185,8 @@ def run_keyboard(state, command_as_control=False, launch_token=None):
         runtime = {'running': True, 'pid': os.getpid(), 'token': token,
                    'launch_token': launch_token, 'independent_task': launch_token is not None,
                    'command_as_control': command_as_control, 'jamo_normalization': True, 'half_width_spaces': True,
-                   'capture_shortcuts': bool(command_as_control), 'capture_output': 'clipboard'}
+                   'capture_shortcuts': bool(command_as_control), 'capture_output': 'clipboard',
+                   'capture_region_keys': ['Control+Shift+F12', 'Control+Shift+S', 'Control+Shift+4'] if command_as_control else []}
         capture_process = None
         try:
             message = W.MSG()

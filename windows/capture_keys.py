@@ -1,4 +1,4 @@
-"""Remote Ctrl+Shift+3/4; only explicit hotkeys request a clipboard capture."""
+"""Remote capture shortcuts, including an F12 fallback for character translation."""
 from collections import deque
 
 MARKER = 0x564E4354
@@ -21,7 +21,7 @@ class CaptureKeys:
             else:
                 self.modifiers.add(vk)
             return False
-        if vk not in (0x33, 0x34):
+        if vk not in (0x33, 0x34, 0x53, 0x7B):
             return False
         if up:
             if vk in self.held:

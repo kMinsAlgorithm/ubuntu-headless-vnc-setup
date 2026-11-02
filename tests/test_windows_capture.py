@@ -40,6 +40,28 @@ class CaptureKeyTests(unittest.TestCase):
         self.assertTrue(self.event(0x34, up=True))
         self.assertEqual(self.keys.take(), 'region')
 
+    def test_region_s_alias_waits_for_release_and_captures_only_once(self):
+        self.chord(0x53)
+        self.assertTrue(self.event(0x53))
+        self.assertIsNone(self.keys.take())
+        self.release(0x53)
+        self.assertEqual(self.keys.take(), 'region')
+        self.assertIsNone(self.keys.take())
+
+    def test_command_shift_s_still_passes_through_as_save_as(self):
+        self.event(0xA4)
+        self.event(0xA2, extra=MARKER)
+        self.event(0xA0)
+        self.assertFalse(self.event(0x53))
+        self.assertFalse(self.event(0x53, up=True))
+        self.assertIsNone(self.keys.take())
+
+    def test_function_key_region_fallback_needs_no_printable_character(self):
+        self.chord(0x7B)
+        self.assertIsNone(self.keys.take())
+        self.release(0x7B)
+        self.assertEqual(self.keys.take(), 'region')
+
     def test_repeated_down_does_not_create_multiple_captures(self):
         self.chord(0x33)
         self.assertTrue(self.event(0x33))
@@ -62,11 +84,12 @@ class CaptureKeyTests(unittest.TestCase):
         self.assertIsNone(self.keys.take())
 
     def test_copy_paste_and_plain_numbers_are_not_intercepted(self):
-        for key in (0x33, 0x34, 0x41, 0x43, 0x56):
+        for key in (0x33, 0x34, 0x41, 0x43, 0x53, 0x56):
             self.assertFalse(self.event(key))
         self.event(0xA2)
         self.assertFalse(self.event(0x43))
         self.assertFalse(self.event(0x56))
+        self.assertFalse(self.event(0x53))  # Ctrl+S without Shift remains Save.
 
     def test_disabled_profile_never_intercepts_or_tracks_keys(self):
         keys = CaptureKeys(enabled=False)
