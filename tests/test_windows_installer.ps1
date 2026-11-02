@@ -9,7 +9,7 @@ $taskCleanup = @()
 try {
     $captureHelper = Join-Path $PSScriptRoot '..\windows\capture-clipboard.ps1'
     $captureCheck = powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File $captureHelper -Mode region -Check | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or -not $captureCheck.Ready) { throw 'Clipboard capture helper did not compile.' }
+    if ($LASTEXITCODE -ne 0 -or -not $captureCheck.Ready -or -not $captureCheck.OpaqueSelection) { throw 'Clipboard capture helper did not compile with an opaque selection window.' }
     $env:LOCALAPPDATA = Join-Path $sandbox 'local'
     $fresh = & $installer -Action Install -DesktopDirectory $desktop -StartupDirectory $startup | ConvertFrom-Json
     $taskCleanup += @{AppDirectory=(Split-Path $fresh.Files[0].Destination);BackupDirectory=$fresh.Backup}
