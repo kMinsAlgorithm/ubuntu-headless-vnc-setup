@@ -154,6 +154,8 @@ Mac 프로필(`keyboard on --command-as-control`)에는 다음 VNC 단축키도 
 
 현재 Mac VNC 진단에서는 Control/Shift는 도착했지만 숫자 4는 Windows 키 이벤트에 나타나지 않았고, S 조합도 영역 요청으로 인식되지 않았습니다. 이 전송 경로에는 문자 변환을 거치지 않는 F12 대체 키를 사용합니다. Mac의 F12가 볼륨 키로 동작하면 **fn+Control+Shift+F12**, 표준 기능키 설정이면 **Control+Shift+F12**를 누릅니다. [Apple 기능키 안내](https://support.apple.com/en-gb/102439)
 
+실제 Mac VNC에서 **fn+Control+Shift+F12로 작은 영역을 선택한 뒤 Windows 앱에 ⌘V로 붙여넣어 선택 부분만 나오는 것**을 사용자 확인했습니다. 현재 기준 환경에서는 이 F12 조합을 사용합니다.
+
 기본 Mac의 ⌘⇧3/4는 Mac 자체가 먼저 처리하므로 그대로 유지합니다. Windows로 전달된 주입 이벤트만 보정하며, 물리 Windows 키보드·기존 ⌘C/V·AltGr/Win 조합·일반 숫자는 바꾸지 않습니다. 숫자 키의 반복 누름으로 여러 캡처를 만들지 않고, 조합 키를 뗀 뒤 캡처를 시작합니다. 캡처 도우미는 사용자 데스크톱에서 실행하고 키보드 모드를 끄면 열려 있던 영역 선택도 종료합니다.
 
 ## 복구·제거
